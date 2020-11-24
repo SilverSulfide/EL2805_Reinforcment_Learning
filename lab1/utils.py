@@ -126,4 +126,6 @@ class Maze:
             cell.set_height(1.0 / rows)
             cell.set_width(1.0 / cols)
 
-        plt.show()
+        plt.show(block=False)
+        plt.pause(0.1)
+        plt.close("all")
