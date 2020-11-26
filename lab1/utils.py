@@ -59,7 +59,7 @@ class Minotaur:
 
 class Maze:
 
-    def __init__(self):
+    def __init__(self, stay=False):
         # reward values
         self.STEP_REWARD = 0
         self.EATEN_REWARD = -100
@@ -70,7 +70,7 @@ class Maze:
                       [2, 5], [3, 5], [2, 5], [2, 6], [2, 7]]
 
         self.board = self.__init_board()
-        self.minotaur = Minotaur()
+        self.minotaur = Minotaur(stay=stay)
         self.minotaur.generate_valid_moves(self.board)
 
         self.colors = {0: 'WHITE', 1: 'BLACK', 2: 'GREEN', -1: 'RED'}
@@ -327,7 +327,7 @@ class Maze:
         prob_states[start] = 1
 
         # horizon computed from optimal policy
-        horizon = policy.shape[1];
+        horizon = policy.shape[1]
 
         # start at t = 0
         t = 0
@@ -377,7 +377,7 @@ class Maze:
             elif state in self.win_states:
                 won += prob
 
-        print("T = ", horizon - 1)
+        print("T = ", horizon)
         print("Amount of wins = ", won)
         print("Amount of deaths = ", eaten)
         print("  ")
@@ -550,12 +550,18 @@ def survival_rate_dynprog(maze):
 
     start_A = (0, 0, 6, 5)
 
+    ts = []
+
     # for each T, compute the amount of wins when following the optimal path
-    for T in range(1, 21):
+    for T in range(1, 24):
         V, policy = dynamic_programming(maze, T)
 
         rate = maze.survival_rate_dynamic(start_A, policy)
 
         survive_prob.append(rate)
 
-    return survive_prob
+        ts.append(T)
+
+    plt.plot(ts, survive_prob, 'bo')
+    plt.legend("T", "Probability of winning")
+    plt.show()

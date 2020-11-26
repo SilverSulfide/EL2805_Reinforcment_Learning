@@ -1,6 +1,7 @@
 # Created by:
 # markuz@kth.se 970328-T171
 # amper@kth.se 971231-3817
+
 import utils as ut
 import time
 import numpy as np
@@ -8,6 +9,7 @@ import matplotlib.animation as animation
 import matplotlib.pyplot as plt
 
 maze = ut.Maze()
+
 """
 V, policy = ut.dynamic_programming(maze, 20)
 path = maze.simulate((0, 0, 6, 5), policy, method='DynProg')
@@ -22,7 +24,11 @@ anim.save('results/mino.gif', writer='imagemagick')
 
 
 # ------------- Dynamic Programming survival --------------
-ut.survival_rate_dynprog(maze)
+# ut.survival_rate_dynprog(maze)
+
+# ------------- Dynamic Programming survival --------------
+maze2 = ut.Maze(stay=True)
+ut.survival_rate_dynprog(maze2)
 
 # ------------- Value iteration --------------
 # ut.survival_rate_valiter(maze)
