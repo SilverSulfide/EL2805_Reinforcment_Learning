@@ -57,62 +57,64 @@ class Minotaur:
                                 dummy = 0
 
 
-class Player:
-
-    def __init__(self):
-        self.x = 0
-        self.y = 0
-        self.actions = {0: (0, 0), 1: (0, -1), 2: (0, 1), 3: (-1, 0), 4: (1, 0)}
-        self.action_names = {0: 'stay', 1: 'left', 2: 'right', 3: 'up', 4: 'down'}
-
-    def move(self, board, move):
-        # Compute the future position given current (state, action)
-
-        self.y += self.actions[move][0]
-        self.x += self.actions[move][1]
-
-        # Is the future position an impossible one ?
-        hitting_maze_walls = (self.y == -1) or (self.y == board.shape[0]) or \
-                             (self.x == -1) or (self.x == board.shape[1]) or \
-                             (board[self.y, self.x] == 1)
-
-        # Based on the impossibilty check return the next state.
-        if hitting_maze_walls:
-            self.y -= self.actions[move][0]
-            self.x -= self.actions[move][1]
+# class Player:
+#
+#     def __init__(self):
+#         self.x = 0
+#         self.y = 0
+#         self.actions = {0: (0, 0), 1: (0, -1), 2: (0, 1), 3: (-1, 0), 4: (1, 0)}
+#         self.action_names = {0: 'stay', 1: 'left', 2: 'right', 3: 'up', 4: 'down'}
+#
+#     def move(self, board, move):
+#         # Compute the future position given current (state, action)
+#
+#         self.y += self.actions[move][0]
+#         self.x += self.actions[move][1]
+#
+#         # Is the future position an impossible one ?
+#         hitting_maze_walls = (self.y == -1) or (self.y == board.shape[0]) or \
+#                              (self.x == -1) or (self.x == board.shape[1]) or \
+#                              (board[self.y, self.x] == 1)
+#
+#         # Based on the impossibilty check return the next state.
+#         if hitting_maze_walls:
+#             self.y -= self.actions[move][0]
+#             self.x -= self.actions[move][1]
 
 
 class Maze:
-    # Actions
-    # STAY       = 0
-    # MOVE_LEFT  = 1
-    # MOVE_RIGHT = 2
-    # MOVE_UP    = 3
-    # MOVE_DOWN  = 4
-
-    # Reward values
-    STEP_REWARD = 0
-    EATEN_REWARD = -100
-    WIN_REWARD = 1
-    IMPOSSIBLE_REWARD = -100
 
     def __init__(self):
-        self.board = np.zeros((7, 8))
+        # reward values
+        self.STEP_REWARD = 0
+        self.EATEN_REWARD = -100
+        self.WIN_REWARD = 1
+        self.IMPOSSIBLE_REWARD = -100
+
         self.walls = [[0, 2], [1, 2], [2, 2], [3, 2], [5, 1], [5, 2], [5, 3], [5, 4], [5, 5], [5, 6], [6, 4], [1, 5],
                       [2, 5], [3, 5], [2, 5], [2, 6], [2, 7]]
-        self.colors = {0: 'WHITE', 1: 'BLACK', 2: 'GREEN', -1: 'RED'}
-        self.states, self.eaten_states, self.win_states, self.map_ = self.__states();
-        self.n_states = len(self.states);
-        self.actions = self.__actions()
-        self.n_actions = len(self.actions)
-        self.transition_probabilities = self.__transitions();
-        self.rewards = self.__rewards();
+
+        self.board = self.__init_board()
         self.minotaur = Minotaur()
         self.minotaur.generate_valid_moves(self.board)
 
-    def init_board(self):
+        self.colors = {0: 'WHITE', 1: 'BLACK', 2: 'GREEN', -1: 'RED'}
+
+        self.states, self.eaten_states, self.win_states, self.map_ = self.__states()
+        self.n_states = len(self.states)
+
+        self.actions = self.__actions()
+        self.n_actions = len(self.actions)
+
+        self.transition_probabilities = self.__transitions()
+
+        self.rewards = self.__rewards()
+
+    def __init_board(self):
+        board = np.zeros((7, 8))
         for wall in self.walls:
-            self.board[wall[0]][wall[1]] = 1
+            board[wall[0]][wall[1]] = 1
+        return board
 
     def draw(self):
         # Give a color to each cell
@@ -127,10 +129,11 @@ class Maze:
         text_maze.append([None, None, None, None, None, 'B', None, None])
 
         # Create figure of the size of the maze
-        fig = plt.figure(1, figsize=(cols, rows))
+        #fig = plt.figure(1, figsize=(cols, rows))
 
         # Remove the axis ticks and add title
         ax = plt.gca()
+        ax.clear()
         ax.set_title('The Maze')
         ax.set_xticks([])
         ax.set_yticks([])
@@ -148,17 +151,8 @@ class Maze:
             cell.set_height(1.0 / rows)
             cell.set_width(1.0 / cols)
 
-        plt.show(block=False)
-        plt.pause(0.1)
-        plt.close("all")
-
     def __actions(self):
-        actions = dict()
-        actions[0] = (0, 0)
-        actions[1] = (0, -1)
-        actions[2] = (0, 1)
-        actions[3] = (-1, 0)
-        actions[4] = (1, 0)
+        actions = {0: (0, 0), 1: (0, -1), 2: (0, 1), 3: (-1, 0), 4: (1, 0)}
         return actions
 
     def __states(self):
@@ -193,9 +187,8 @@ class Maze:
         # Compute the future position given current (state, action)
         # The minotaur stops moving, either to eat your body,
         # or because you have escaped and he is hungry and wants to rest.
-
         # doesn't matter since the game ends if you die or ends if you win
-        if state in self.eaten_states or self.win_states:
+        if state in self.eaten_states or state in self.win_states:
             return [state]
 
         row = self.states[state][0] + self.actions[action][0]
@@ -212,7 +205,6 @@ class Maze:
             col = self.states[state][1]
 
         mino_moves = self.minotaur.valid_moves[self.states[state][-2:]]
-
         next_states = []
 
         # Create all possible minotaur positions from state s.
@@ -225,7 +217,7 @@ class Maze:
                 m_row += self.actions[move][0]
                 m_col += self.actions[move][1]
 
-            next_states.append(self.map_[(col, row, m_col, m_row)])
+            next_states.append(self.map_[(row, col, m_row, m_col)])
 
         return next_states
 
@@ -295,6 +287,28 @@ class Maze:
 
         return transition_probabilities
 
+    def simulate(self, start, policy):
+        path = []
+
+        # Deduce the horizon from the policy shape
+        horizon = policy.shape[1]
+        # Initialize current state and time
+        t = 0
+        s = self.map_[start]
+        # Add the starting position in the maze to the path
+        path.append(start)
+        while t < horizon:
+            # Move to next state given the policy and the current state
+            next_s = self.__move(s, policy[s, t])
+            next_s = np.random.choice(next_s)
+            # Add the position in the maze corresponding to the next state
+            # to the path
+            path.append(self.states[next_s])
+            # Update time and state for next iteration
+            t += 1
+            s = next_s
+        return path
+
 
 def dynamic_programming(env, horizon):
     """ Solves the shortest path problem using dynamic programming
@@ -342,24 +356,3 @@ def dynamic_programming(env, horizon):
         policy[:, t] = np.argmax(Q, 1)
 
     return V, policy
-
-
-def simulate(self, start, policy):
-    path = list();
-
-    # Deduce the horizon from the policy shape
-    horizon = policy.shape[1]
-    # Initialize current state and time
-    t = 0
-    s = self.map[start]
-    # Add the starting position in the maze to the path
-    path.append(start)
-    while t < horizon - 1:
-        # Move to next state given the policy and the current state
-        next_s = self.__move(s, policy[s, t])
-        # Add the position in the maze corresponding to the next state
-        # to the path
-        path.append(self.states[next_s])
-        # Update time and state for next iteration
-        t += 1
-        s = next_s
