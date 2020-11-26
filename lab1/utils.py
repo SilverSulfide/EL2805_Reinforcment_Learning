@@ -314,7 +314,77 @@ class Maze:
 
         return path
 
-    def survival_rate_simulated(self, start, policy, survival_factor, num=10000):
+    def survival_rate_dynamic(self, start, policy):
+
+        states = set()
+        num_states = dict()
+        prob_states = dict()
+
+        start = self.map_[start]
+
+        states.add(start)
+        num_states[start] = 1
+        prob_states[start] = 1
+
+        # horizon computed from optimal policy
+        horizon = policy.shape[1];
+
+        # start at t = 0
+        t = 0
+
+        while t < horizon:
+            next_states = set()
+            next_num = dict()
+            next_prob = dict()
+            next_total = 0
+
+            # go through all possible current states at time t and find possible next states.
+            for s in states:
+                s_count = num_states[s]
+                s_prob = prob_states[s]
+
+                # pick best action according to policy and find what states it leads to
+                action = policy[s, t]
+                new_states = self.__move(s, action)
+
+                # each new state for this optimal action has probability 1/N, since minotaur can move in N ways
+                each_ns_prob = s_prob / len(new_states)
+
+                # the new possible states we found are looped over
+                for ns in new_states:
+                    next_num[ns] = next_num.get(ns, 0) + s_count
+                    next_prob[ns] = next_prob.get(ns, 0) + each_ns_prob
+
+                    next_states.add(ns)
+                    next_total += s_count
+
+            # nothing moving, break,
+            if next_states == states:  # ???
+                break
+
+            states = next_states
+            num_states = next_num
+            prob_states = next_prob
+
+            t += 1
+
+        won = 0
+        eaten = 0
+
+        for state, prob in prob_states.items():
+            if state in self.eaten_states:
+                eaten += prob
+            elif state in self.win_states:
+                won += prob
+
+        print("T = ", horizon - 1)
+        print("Amount of wins = ", won)
+        print("Amount of deaths = ", eaten)
+        print("  ")
+
+        return won
+
+    def survival_rate_val(self, start, policy, survival_factor, num=10000):
         won = 0
         total_path_len = 0
 
@@ -464,9 +534,28 @@ def survival_rate_valiter(maze):
 
     start_A = (0, 0, 6, 5)
 
-    rate, avg_path_len = maze.survival_rate_simulated(start_A, policy, survival_factor=gamma)
+    rate, avg_path_len = maze.survival_rate_val(start_A, policy, survival_factor=gamma)
 
     print("Rate of survival = ", rate)
     print("Average lifetime = ", avg_path_len - 1)
 
     return rate
+
+
+def survival_rate_dynprog(maze):
+    """
+    possible kwargs are minotaur_stay, avoid_minotaur, and min_path
+    """
+    survive_prob = []
+
+    start_A = (0, 0, 6, 5)
+
+    # for each T, compute the amount of wins when following the optimal path
+    for T in range(1, 21):
+        V, policy = dynamic_programming(maze, T)
+
+        rate = maze.survival_rate_dynamic(start_A, policy)
+
+        survive_prob.append(rate)
+
+    return survive_prob

@@ -20,6 +20,10 @@ anim = animation.FuncAnimation(fig, total.animate, frames=len(path), interval=30
 anim.save('results/mino.gif', writer='imagemagick')
 """
 
+
+# ------------- Dynamic Programming survival --------------
+ut.survival_rate_dynprog(maze)
+
 # ------------- Value iteration --------------
-ut.survival_rate_valiter(maze)
+# ut.survival_rate_valiter(maze)
 
