@@ -351,7 +351,7 @@ class Maze:
                 each_ns_prob = s_prob / len(new_states)
 
                 # the new possible states we found are looped over
-                for ns in new_states:
+                for ns in new_states: # ???
                     next_num[ns] = next_num.get(ns, 0) + s_count
                     next_prob[ns] = next_prob.get(ns, 0) + each_ns_prob
 
