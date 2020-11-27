@@ -24,11 +24,11 @@ anim.save('results/mino.gif', writer='imagemagick')
 
 
 # ------------- Dynamic Programming survival --------------
-# ut.survival_rate_dynprog(maze)
+ut.survival_rate_dynprog(maze)
 
 # ------------- Dynamic Programming survival --------------
-maze2 = ut.Maze(stay=True)
-ut.survival_rate_dynprog(maze2)
+# maze2 = ut.Maze(stay=True)
+# ut.survival_rate_dynprog(maze2)
 
 # ------------- Value iteration --------------
 # ut.survival_rate_valiter(maze)

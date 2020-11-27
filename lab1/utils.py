@@ -207,6 +207,8 @@ class Maze:
                 # List of possible next states from state s, given action a.
                 next_states = self.__move(s, a)
 
+                # we don't know where the minotaur will go, so we need to add a weight to the reward,
+                # because the action has a probability to move to different states, with different rewards.
                 prob_weighted_reward = 0.0
 
                 for next_s in next_states:
@@ -563,5 +565,6 @@ def survival_rate_dynprog(maze):
         ts.append(T)
 
     plt.plot(ts, survive_prob, 'bo')
-    plt.legend("T", "Probability of winning")
+    plt.xlabel("T")
+    plt.ylabel("Probability of winning")
     plt.show()
