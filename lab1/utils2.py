@@ -32,34 +32,18 @@ class Minotaur:
             for j in range(board.shape[1]):
                 # doing the 0 move
                 for move in self.actions:
-                    if board[i][j] != 1:
-                        temp_y = i + self.actions[move][0]
-                        temp_x = j + self.actions[move][1]
+                    # deleted here
+                    temp_y = i + self.actions[move][0]
+                    temp_x = j + self.actions[move][1]
 
-                        if temp_y != -1 and temp_x != -1:  #  and temp_y != board.shape[0] and temp_x != board.shape[1]
+                    if temp_y != -1 and temp_x != -1 and temp_y != board.shape[0] and temp_x != board.shape[1]:
 
-                            try:
-                                location = board[temp_y][temp_x]
-                                if location == 1:
-                                    temp_y += self.actions[move][0]
-                                    temp_x += self.actions[move][1]
-
-                                    try:
-                                        location = board[temp_y][temp_x]
-                                        if location == 0:
-                                            self.valid_moves[(i, j)].append(move)
-                                    except:
-                                        dummy = 0
-                                else:
-                                    self.valid_moves[(i, j)].append(move)
-
-                            except:
-                                dummy = 0
+                        self.valid_moves[(i, j)].append(move)
 
 
 class Maze:
 
-    def __init__(self, stay=True):
+    def __init__(self, stay=False):
         # reward values
         self.STEP_REWARD = 0
         self.EATEN_REWARD = -100
@@ -140,7 +124,8 @@ class Maze:
             for Px in range(self.board.shape[1]):
                 for My in range(self.board.shape[0]):
                     for Mx in range(self.board.shape[1]):
-                        if self.board[My, Mx] != 1 and self.board[Py, Px] != 1:
+                        # deleted here
+                        if self.board[Py, Px] != 1:
                             if Py == 6 and Px == 5:
                                 win_states.append(s)
 
@@ -187,10 +172,7 @@ class Maze:
             m_row = self.states[state][2] + self.actions[move][0]
             m_col = self.states[state][3] + self.actions[move][1]
 
-            # jumping over wall
-            if self.board[m_row, m_col] == 1:
-                m_row += self.actions[move][0]
-                m_col += self.actions[move][1]
+            # deleted jumping
 
             next_states.append(self.map_[(row, col, m_row, m_col)])
 
@@ -298,7 +280,7 @@ class Maze:
 
                 # check if not dead
                 if survival_factor is not None:
-                    if np.random.random() < ((1 - survival_factor)*(survival_factor)**t):
+                    if np.random.random() < ((1 - survival_factor) * (survival_factor) ** t):
                         break
 
                 # Move to next state given the policy and the current state
@@ -316,6 +298,7 @@ class Maze:
 
         return path
 
+
     def survival_rate_dynamic(self, start, V):
 
         won = V[self.map_[start], 0]
@@ -323,7 +306,6 @@ class Maze:
         print(won)
 
         return won
-
 
     def survival_rate_val(self, start, policy, survival_factor, num=10000):
         won = 0

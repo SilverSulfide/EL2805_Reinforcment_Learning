@@ -3,6 +3,7 @@
 # amper@kth.se 971231-3817
 
 import utils as ut
+# import utils2 as ut
 import time
 import numpy as np
 import matplotlib.animation as animation
@@ -24,12 +25,12 @@ anim.save('results/mino.gif', writer='imagemagick')
 
 
 # ------------- Dynamic Programming survival --------------
-ut.survival_rate_dynprog(maze)
+# ut.survival_rate_dynprog(maze)
 
 # ------------- Dynamic Programming survival --------------
 # maze2 = ut.Maze(stay=True)
 # ut.survival_rate_dynprog(maze2)
 
 # ------------- Value iteration --------------
-# ut.survival_rate_valiter(maze)
+ut.survival_rate_valiter(maze)
 
