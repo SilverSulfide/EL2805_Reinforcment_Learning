@@ -3,16 +3,13 @@ import matplotlib.pyplot as plt
 from collections import defaultdict
 
 
-class Minotaur:
-    def __init__(self, stay=False):
+class Police:
+    def __init__(self):
         self.x = 5
         self.y = 6
-        # stay, left, right, up, down : (y,x)
-        if stay:
-            self.actions = {0: (0, 0), 1: (0, -1), 2: (0, 1), 3: (-1, 0), 4: (1, 0)}
-        else:
-            self.actions = {1: (0, -1), 2: (0, 1), 3: (-1, 0), 4: (1, 0)}
-        self.action_names = {0: 'stay', 1: 'left', 2: 'right', 3: 'up', 4: 'down'}
+        # left, right, up, down : (y,x)
+        self.actions = {1: (0, -1), 2: (0, 1), 3: (-1, 0), 4: (1, 0)}
+        self.action_names = {1: 'left', 2: 'right', 3: 'up', 4: 'down'}
         self.valid_moves = defaultdict(list)
 
     def move(self, board):
@@ -57,25 +54,23 @@ class Minotaur:
                                 dummy = 0
 
 
-class Maze:
+class City:
 
-    def __init__(self, stay=False):
+    def __init__(self):
         # reward values
         self.STEP_REWARD = 0
-        self.EATEN_REWARD = -100
-        self.WIN_REWARD = 1
-        self.IMPOSSIBLE_REWARD = -100
+        self.BANK_REWARD = 10
+        self.CAUGHT_REWARD = -50
 
-        self.walls = [[0, 2], [1, 2], [2, 2], [3, 2], [5, 1], [5, 2], [5, 3], [5, 4], [5, 5], [5, 6], [6, 4], [1, 5],
-                      [2, 5], [3, 5], [2, 5], [2, 6], [2, 7]]
+        self.banks = [[0, 0], [2, 0], [0, 5], [2, 5]]
 
         self.board = self.__init_board()
-        self.minotaur = Minotaur(stay=stay)
-        self.minotaur.generate_valid_moves(self.board)
+        self.police = Police()
+        self.police.generate_valid_moves(self.board)
 
         self.colors = {0: 'WHITE', 1: 'BLACK', 2: 'GREEN', -1: 'RED'}
 
-        self.states, self.eaten_states, self.win_states, self.map_ = self.__states()
+        self.states, self.caught_states, self.map_ = self.__states()
         self.n_states = len(self.states)
 
         self.actions = self.__actions()
@@ -87,8 +82,8 @@ class Maze:
 
     def __init_board(self):
         board = np.zeros((7, 8))
-        for wall in self.walls:
-            board[wall[0]][wall[1]] = 1
+        for bank in self.banks:
+            board[bank[0]][bank[1]] = 1
         return board
 
     def draw(self):
@@ -132,26 +127,21 @@ class Maze:
 
     def __states(self):
         states = {}
-        eaten_states = []
-        win_states = []
+        caught_states = []
         map_ = {}
         s = 0
-        for Py in range(self.board.shape[0]):
-            for Px in range(self.board.shape[1]):
-                for My in range(self.board.shape[0]):
-                    for Mx in range(self.board.shape[1]):
-                        if self.board[My, Mx] != 1 and self.board[Py, Px] != 1:
-                            if Py == 6 and Px == 5:
-                                win_states.append(s)
+        for Ry in range(self.board.shape[0]):
+            for Rx in range(self.board.shape[1]):
+                for Py in range(self.board.shape[0]):
+                    for Px in range(self.board.shape[1]):
+                        if Ry == Py and Rx == Px:
+                            caught_states.append(s)
 
-                            elif Py == My and Px == Mx:
-                                eaten_states.append(s)
+                        map_[(Ry, Rx, Py, Px)] = s
+                        states[s] = (Ry, Rx, Py, Px)
+                        s += 1
 
-                            map_[(Py, Px, My, Mx)] = s
-                            states[s] = (Py, Px, My, Mx)
-                            s += 1
-
-        return states, eaten_states, win_states, map_
+        return states, caught_states, map_
 
     def __move(self, state, action):
         """
@@ -159,38 +149,29 @@ class Maze:
             Action is an integer
             returns list of hashed next states given s and a
         """
-        # Compute the future position given current (state, action)
-        # The minotaur stops moving, either to eat your body,
-        # or because you have escaped and he is hungry and wants to rest.
-        # doesn't matter since the game ends if you die or ends if you win
-        if state in self.eaten_states or state in self.win_states:
-            return [state]
+
+        if state in self.caught_states:
+            return [start_state]
 
         row = self.states[state][0] + self.actions[action][0]
         col = self.states[state][1] + self.actions[action][1]
 
         # Is the future position an impossible one ?
-        hitting_maze_walls = (row == -1) or (row == self.board.shape[0]) or \
-                             (col == -1) or (col == self.board.shape[1]) or \
-                             (self.board[row, col] == 1)
+        hitting_city_walls = (row == -1) or (row == self.board.shape[0]) or \
+                             (col == -1) or (col == self.board.shape[1])
 
         # Based on the impossiblity check return the next state.
-        if hitting_maze_walls:
+        if hitting_city_walls:
             row = self.states[state][0]
             col = self.states[state][1]
 
-        mino_moves = self.minotaur.valid_moves[self.states[state][-2:]]
+        cops_moves = self.police.valid_moves[self.states[state][-2:]]
         next_states = []
 
         # Create all possible minotaur positions from state s.
-        for move in mino_moves:
+        for move in cops_moves:
             m_row = self.states[state][2] + self.actions[move][0]
             m_col = self.states[state][3] + self.actions[move][1]
-
-            # jumping over wall
-            if self.board[m_row, m_col] == 1:
-                m_row += self.actions[move][0]
-                m_col += self.actions[move][1]
 
             next_states.append(self.map_[(row, col, m_row, m_col)])
 
@@ -267,25 +248,6 @@ class Maze:
     def simulate(self, start, policy, method, survival_factor=None):
         path = []
 
-        if method == 'DynProg':
-            # Deduce the horizon from the policy shape
-            horizon = policy.shape[1]
-            # Initialize current state and time
-            t = 0
-            s = self.map_[start]
-            # Add the starting position in the maze to the path
-            path.append(start)
-            while t < horizon:
-                # Move to next state given the policy and the current state
-                next_s = self.__move(s, policy[s, t])
-                next_s = np.random.choice(next_s)
-                # Add the position in the maze corresponding to the next state
-                # to the path
-                path.append(self.states[next_s])
-                # Update time and state for next iteration
-                t += 1
-                s = next_s
-
         if method == 'ValIter':
             # Initialize current state, next state and time
             t = 0
@@ -316,13 +278,6 @@ class Maze:
 
         return path
 
-    def survival_rate_dynamic(self, start, V):
-
-        won = V[self.map_[start], 0]
-
-        print(won)
-
-        return won
 
 
     def survival_rate_val(self, start, policy, survival_factor, num=10000):
@@ -355,52 +310,6 @@ class AnimateGame:
         self.maze.board[moves[2]][moves[3]] = 0
 
 
-def dynamic_programming(env, horizon):
-    """ Solves the shortest path problem using dynamic programming
-        :input Maze env           : The maze environment in which we seek to
-                                    find the shortest path.
-        :input int horizon        : The time T up to which we solve the problem.
-        :return numpy.array V     : Optimal values for every state at every
-                                    time, dimension S*T
-        :return numpy.array policy: Optimal time-varying policy at every state,
-                                    dimension S*T
-    """
-
-    # The dynamic prgramming requires the knowledge of :
-    # - Transition probabilities
-    # - Rewards
-    # - State space
-    # - Action space
-    # - The finite horizon
-    p = env.transition_probabilities
-    r = env.rewards
-    n_states = env.n_states
-    n_actions = env.n_actions
-    T = horizon
-
-    # The variables involved in the dynamic programming backwards recursions
-    V = np.zeros((n_states, T + 1))
-    policy = np.zeros((n_states, T + 1))
-    Q = np.zeros((n_states, n_actions))
-
-    # Initialization
-    Q = np.copy(r)
-    V[:, T] = np.max(Q, 1)
-    policy[:, T] = np.argmax(Q, 1)
-
-    # The dynamic programming bakwards recursion
-    for t in range(T - 1, -1, -1):
-        # Update the value function acccording to the bellman equation
-        for s in range(n_states):
-            for a in range(n_actions):
-                # Update of the temporary Q values
-                Q[s, a] = r[s, a] + np.dot(p[:, s, a], V[:, t + 1])
-        # Update by taking the maximum Q value w.r.t the action a
-        V[:, t] = np.max(Q, 1)
-        # The optimal action is the one that maximizes the Q function
-        policy[:, t] = np.argmax(Q, 1)
-
-    return V, policy
 
 
 def value_iteration(env, gamma, epsilon):
@@ -483,27 +392,3 @@ def survival_rate_valiter(maze):
     return rate
 
 
-def survival_rate_dynprog(maze):
-    """
-    possible kwargs are minotaur_stay, avoid_minotaur, and min_path
-    """
-    survive_prob = []
-
-    start_A = (0, 0, 6, 5)
-
-    ts = []
-
-    # for each T, compute the amount of wins when following the optimal path
-    for T in range(12, 25):
-        V, policy = dynamic_programming(maze, T)
-
-        rate = maze.survival_rate_dynamic(start_A, V)
-
-        survive_prob.append(rate)
-
-        ts.append(T)
-
-    plt.plot(ts, survive_prob, 'bo')
-    plt.xlabel("T")
-    plt.ylabel("Probability of winning")
-    plt.show()

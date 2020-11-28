@@ -43,12 +43,12 @@ class Minotaur:
 
 class Maze:
 
-    def __init__(self, stay=False):
+    def __init__(self, stay=True):
         # reward values
         self.STEP_REWARD = 0
-        self.EATEN_REWARD = -100
+        self.EATEN_REWARD = -1
         self.WIN_REWARD = 1
-        self.IMPOSSIBLE_REWARD = -100
+        self.IMPOSSIBLE_REWARD = 0
 
         self.walls = [[0, 2], [1, 2], [2, 2], [3, 2], [5, 1], [5, 2], [5, 3], [5, 4], [5, 5], [5, 6], [6, 4], [1, 5],
                       [2, 5], [3, 5], [2, 5], [2, 6], [2, 7]]
@@ -274,14 +274,19 @@ class Maze:
             s = self.map_[start]
 
             # Loop while state is not the goal state
+
             while True:
 
                 path.append(self.states[s])
 
                 # check if not dead
                 if survival_factor is not None:
-                    if np.random.random() < ((1 - survival_factor) * (survival_factor) ** t):
+                    if np.random.random() > survival_factor:
                         break
+
+                # stop to check if optimum can be found
+                #if t == 16:
+                    #break
 
                 # Move to next state given the policy and the current state
                 if s in self.eaten_states or s in self.win_states:
@@ -476,7 +481,7 @@ def survival_rate_dynprog(maze):
     ts = []
 
     # for each T, compute the amount of wins when following the optimal path
-    for T in range(10, 20):
+    for T in range(12, 25):
         V, policy = dynamic_programming(maze, T)
 
         rate = maze.survival_rate_dynamic(start_A, V)
