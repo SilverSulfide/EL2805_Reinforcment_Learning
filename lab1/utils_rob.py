@@ -5,53 +5,80 @@ from collections import defaultdict
 
 class Police:
     def __init__(self):
-        self.x = 5
-        self.y = 6
+        self.x = 2
+        self.y = 1
         # left, right, up, down : (y,x)
         self.actions = {1: (0, -1), 2: (0, 1), 3: (-1, 0), 4: (1, 0)}
         self.action_names = {1: 'left', 2: 'right', 3: 'up', 4: 'down'}
         self.valid_moves = defaultdict(list)
 
-    def move(self, board):
+    def move(self, player_y, player_x):
 
-        moves = self.valid_moves[(self.y, self.x)]
-        move = np.random.choice(moves)
+        # grab the available moves
+        moves = [1, 2, 3, 4]
 
-        self.y += self.actions[move][0]
-        self.x += self.actions[move][1]
+        # moving logic
+        # check same column
+        if player_x == self.x:
+            # check if we are below of the player
+            if player_y < self.y:
+                moves.remove(4)
+            # check if we are above the player
+            elif self.y < player_y:
+                moves.remove(3)
 
-        if board[self.y, self.x] == 1:
-            self.y += self.actions[move][0]
-            self.x += self.actions[move][1]
+        # check the same line
+        elif player_y == self.y:
+            # check if we are on the left of the player
+            if player_x > self.x:
+                moves.remove(1)
+            # check if we are on the right of the player
+            elif self.x > player_x:
+                moves.remove(2)
+
+        else:
+            # we are below on the left
+            if player_y < self.y and player_x > self.x:
+                moves.remove(4)
+                moves.remove(1)
+
+            # we are above the left
+            if player_y > self.y and player_x > self.x:
+                moves.remove(3)
+                moves.remove(1)
+
+            # we are below on the right
+            if player_y < self.y and player_x < self.x:
+                moves.remove(4)
+                moves.remove(2)
+
+            # we are above on the right
+            if player_y > self.y and player_x < self.x:
+                moves.remove(3)
+                moves.remove(2)
+
+        # grab valid moves
+        valid_moves = set(self.valid_moves[(self.y, self.x)])
+        # intersect valid moves with chasing moves
+        moves = list(valid_moves.intersection(set(moves)))
+
+        return moves
 
     def generate_valid_moves(self, board):
         for i in range(board.shape[0]):
             for j in range(board.shape[1]):
-                # doing the 0 move
                 for move in self.actions:
-                    if board[i][j] != 1:
-                        temp_y = i + self.actions[move][0]
-                        temp_x = j + self.actions[move][1]
+                    temp_y = i + self.actions[move][0]
+                    temp_x = j + self.actions[move][1]
 
-                        if temp_y != -1 and temp_x != -1:  #  and temp_y != board.shape[0] and temp_x != board.shape[1]
+                    if temp_y != -1 and temp_x != -1:
 
-                            try:
-                                location = board[temp_y][temp_x]
-                                if location == 1:
-                                    temp_y += self.actions[move][0]
-                                    temp_x += self.actions[move][1]
+                        try:
+                            location = board[temp_y][temp_x]
+                            self.valid_moves[(i, j)].append(move)
 
-                                    try:
-                                        location = board[temp_y][temp_x]
-                                        if location == 0:
-                                            self.valid_moves[(i, j)].append(move)
-                                    except:
-                                        dummy = 0
-                                else:
-                                    self.valid_moves[(i, j)].append(move)
-
-                            except:
-                                dummy = 0
+                        except:
+                            dummy = 0
 
 
 class City:
@@ -61,16 +88,22 @@ class City:
         self.STEP_REWARD = 0
         self.BANK_REWARD = 10
         self.CAUGHT_REWARD = -50
+        self.IMPOSSIBLE_REWARD = -10000000000
 
         self.banks = [[0, 0], [2, 0], [0, 5], [2, 5]]
+        self.police_station = [1, 2]
 
         self.board = self.__init_board()
         self.police = Police()
         self.police.generate_valid_moves(self.board)
 
-        self.colors = {0: 'WHITE', 1: 'BLACK', 2: 'GREEN', -1: 'RED'}
+        self.start_state = (0, 0, 1, 2)
 
-        self.states, self.caught_states, self.map_ = self.__states()
+        self.colors = {0: 'WHITE', 1: 'BLUE', 2: 'GREEN', -1: 'RED'}
+        self.action_names = {0: 'stay', 1: 'left', 2: 'right', 3: 'up', 4: 'down'}
+        self.action_arrows = {0: ".", 1: '←', 2: '→', 3: '↑', 4: '↓'}
+
+        self.states, self.caught_states, self.bank_states, self.map_ = self.__states()
         self.n_states = len(self.states)
 
         self.actions = self.__actions()
@@ -81,32 +114,39 @@ class City:
         self.rewards = self.__rewards()
 
     def __init_board(self):
-        board = np.zeros((7, 8))
+        board = np.zeros((3, 6))
         for bank in self.banks:
             board[bank[0]][bank[1]] = 1
+        board[self.police_station[0]][self.police_station[1]] = -1
+        print(board)
         return board
 
-    def draw(self):
+    def draw(self, policy, plot=False, arrows=False):
         # Give a color to each cell
         rows, cols = self.board.shape
         colored_maze = [[self.colors[self.board[j, i]] for i in range(cols)] for j in range(rows)]
 
         # Draw start and end
-        # FIXME: hardcoded
-        text_maze = [['A', None, None, None, None, None, None, None]]
-        for i in range(5):
-            text_maze.append([None, None, None, None, None, None, None, None])
-        text_maze.append([None, None, None, None, None, 'B', None, None])
+        text_maze = [['Bank1', None, None, None, None, 'Bank4'], [None, None, None, None, None, None],
+                     ['Bank3', None, None, None, None, 'Bank5']]
 
         # Create figure of the size of the maze
-        # fig = plt.figure(1, figsize=(cols, rows))
+        if plot:
+            fig = plt.figure(1, figsize=(cols, rows))
 
         # Remove the axis ticks and add title
         ax = plt.gca()
         ax.clear()
-        ax.set_title('The Maze')
+        ax.set_title('The City')
         ax.set_xticks([])
         ax.set_yticks([])
+
+        if arrows:
+            for Ry in range(self.board.shape[0]):
+                for Rx in range(self.board.shape[1]):
+                    if Ry != 1 or Rx != 2:
+                        s = self.map_[(Ry, Rx, 1, 2)]
+                        text_maze[Ry][Rx] = self.action_arrows[policy[s]]
 
         # Create a table to color
         grid = plt.table(cellText=text_maze,
@@ -121,6 +161,9 @@ class City:
             cell.set_height(1.0 / rows)
             cell.set_width(1.0 / cols)
 
+        if plot:
+            plt.show()
+
     def __actions(self):
         actions = {0: (0, 0), 1: (0, -1), 2: (0, 1), 3: (-1, 0), 4: (1, 0)}
         return actions
@@ -128,20 +171,28 @@ class City:
     def __states(self):
         states = {}
         caught_states = []
+        bank_states = []
         map_ = {}
         s = 0
         for Ry in range(self.board.shape[0]):
             for Rx in range(self.board.shape[1]):
                 for Py in range(self.board.shape[0]):
                     for Px in range(self.board.shape[1]):
+
+                        # check if caught by da police
                         if Ry == Py and Rx == Px:
                             caught_states.append(s)
+
+                        # we wuz kangz n shieeeet
+                        # https://www.youtube.com/watch?v=ofjZ2HY_uh8&ab_channel=AkkadDaily
+                        elif [Ry, Rx] in self.banks:
+                            bank_states.append(s)
 
                         map_[(Ry, Rx, Py, Px)] = s
                         states[s] = (Ry, Rx, Py, Px)
                         s += 1
 
-        return states, caught_states, map_
+        return states, caught_states, bank_states, map_
 
     def __move(self, state, action):
         """
@@ -151,7 +202,7 @@ class City:
         """
 
         if state in self.caught_states:
-            return [start_state]
+            return [self.map_[self.start_state]]
 
         row = self.states[state][0] + self.actions[action][0]
         col = self.states[state][1] + self.actions[action][1]
@@ -165,10 +216,13 @@ class City:
             row = self.states[state][0]
             col = self.states[state][1]
 
-        cops_moves = self.police.valid_moves[self.states[state][-2:]]
+        # grab copper moves
+        self.police.y = self.states[state][2]
+        self.police.x = self.states[state][3]
+        cops_moves = self.police.move(self.states[state][0], self.states[state][1])
         next_states = []
 
-        # Create all possible minotaur positions from state s.
+        # Create all possible cop positions from state s.
         for move in cops_moves:
             m_row = self.states[state][2] + self.actions[move][0]
             m_col = self.states[state][3] + self.actions[move][1]
@@ -188,27 +242,19 @@ class City:
                 # List of possible next states from state s, given action a.
                 next_states = self.__move(s, a)
 
-                # we don't know where the minotaur will go, so we need to add a weight to the reward,
+                # we don't know where the police will go, so we need to add a weight to the reward,
                 # because the action has a probability to move to different states, with different rewards.
                 prob_weighted_reward = 0.0
 
                 for next_s in next_states:
 
-                    # Handle already been eaten:
-                    if s in self.eaten_states:
-                        prob_weighted_reward += self.STEP_REWARD
+                    # Handle getting caught:
+                    if next_s in self.caught_states:
+                        prob_weighted_reward += self.CAUGHT_REWARD
 
-                    # Handle already have won:
-                    elif s in self.win_states:
-                        prob_weighted_reward += self.STEP_REWARD
-
-                    # Handle being eaten:
-                    elif next_s in self.eaten_states:
-                        prob_weighted_reward += self.EATEN_REWARD
-
-                    # Handle winning:
-                    elif next_s in self.win_states:
-                        prob_weighted_reward += self.WIN_REWARD
+                    # handle bank state:
+                    elif next_s in self.bank_states:
+                        prob_weighted_reward += self.BANK_REWARD
 
                     # Reward for hitting a wall
                     elif s == next_s and a != 0:
@@ -227,7 +273,7 @@ class City:
             :return numpy.tensor transition probabilities: tensor of transition
             probabilities of dimension S*S*A
         """
-        # Initialize the transition probailities tensor (S,S,A)
+        # Initialize the transition probabilities tensor (S,S,A)
         dimensions = (self.n_states, self.n_states, self.n_actions)
         transition_probabilities = np.zeros(dimensions)
 
@@ -258,13 +304,8 @@ class City:
 
                 path.append(self.states[s])
 
-                # check if not dead
-                if survival_factor is not None:
-                    if np.random.random() < ((1 - survival_factor)*(survival_factor)**t):
-                        break
-
                 # Move to next state given the policy and the current state
-                if s in self.eaten_states or s in self.win_states:
+                if s in self.caught_states:
                     break
 
                 next_s = self.__move(s, policy[s])
@@ -275,41 +316,24 @@ class City:
                 # Update time and state for next iteration
                 t += 1
                 s = next_s
+                if t > 100:
+                    break
 
         return path
 
 
-
-    def survival_rate_val(self, start, policy, survival_factor, num=10000):
-        won = 0
-        total_path_len = 0
-
-        for i in range(num):
-            path = self.simulate(start, policy, method="ValIter", survival_factor=survival_factor)
-            # print(path)
-            last_state = self.map_[path[-1]]
-            if last_state in self.win_states:
-                won += 1
-
-            total_path_len += len(path)
-
-        return won / num, total_path_len / num
-
-
 class AnimateGame:
     def __init__(self, path):
-        self.maze = Maze()
+        self.maze = City()
         self.path = path
 
     def animate(self, i):
         moves = self.path[i]
         self.maze.board[moves[0]][moves[1]] = 2
         self.maze.board[moves[2]][moves[3]] = -1
-        self.maze.draw()
+        self.maze.draw(None, plot=False, arrows=False)
         self.maze.board[moves[0]][moves[1]] = 0
         self.maze.board[moves[2]][moves[3]] = 0
-
-
 
 
 def value_iteration(env, gamma, epsilon):
@@ -337,11 +361,17 @@ def value_iteration(env, gamma, epsilon):
     # Required variables and temporary ones for the VI to run
     V = np.zeros(n_states)
     Q = np.zeros((n_states, n_actions))
+
+    # we start at bank1 so we have reward 10
+    Q[:, 0] = 10
     BV = np.zeros(n_states)
     # Iteration counter
     n = 0
     # Tolerance error
-    tol = (1 - gamma) * epsilon / gamma
+    if gamma > 0:
+        tol = (1 - gamma) * epsilon / gamma
+    else:
+        tol = 0
 
     # Initialization of the VI
     for s in range(n_states):
@@ -350,7 +380,7 @@ def value_iteration(env, gamma, epsilon):
     BV = np.max(Q, 1)
 
     # Iterate until convergence
-    while np.linalg.norm(V - BV) >= tol and n < 200:
+    while np.linalg.norm(V - BV) >= tol and n < 10000:
         # Increment by one the numbers of iteration
         n += 1
         # Update the value function
@@ -390,5 +420,3 @@ def survival_rate_valiter(maze):
     print("Average lifetime = ", avg_path_len - 1)
 
     return rate
-
-
