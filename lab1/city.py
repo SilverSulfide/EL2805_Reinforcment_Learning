@@ -1,3 +1,7 @@
+# Created by:
+# Martins Kuznecovs 970328-T171
+# Andrzej Perzanowski 971231-3817
+
 import numpy as np
 import matplotlib.pyplot as plt
 from collections import defaultdict
@@ -118,7 +122,6 @@ class City:
         for bank in self.banks:
             board[bank[0]][bank[1]] = 1
         board[self.police_station[0]][self.police_station[1]] = -1
-        print(board)
         return board
 
     def draw(self, policy, plot=False, arrows=False):
@@ -142,10 +145,12 @@ class City:
         ax.set_yticks([])
 
         if arrows:
+            # FIXME: hardcoded police location
             colored_maze[1][2] = 'WHITE'
             colored_maze[1][0] = 'RED'
             for Ry in range(self.board.shape[0]):
                 for Rx in range(self.board.shape[1]):
+                    # FIXME: hardcoded police location
                     if Ry != 1 or Rx != 0:
                         s = self.map_[(Ry, Rx, 1, 0)]
                         text_maze[Ry][Rx] = self.action_arrows[policy[s]]

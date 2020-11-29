@@ -1,3 +1,7 @@
+# Created by:
+# Martins Kuznecovs 970328-T171
+# Andrzej Perzanowski 971231-3817
+
 import numpy as np
 import matplotlib.pyplot as plt
 from collections import defaultdict
@@ -433,37 +437,37 @@ class Maze:
 
         won = V[self.map_[start], 0]
 
-        print(won)
+        print("survival:", won)
 
         return won
 
-    def survival_rate_val(self, start, policy, survival_factor, num=10000):
+    def survival_rate_val(self, start, policy, survival_factor, iters=10000):
         won = 0
-        total_path_len = 0
-        for i in range(num):
+        path_len = 0
+        for i in range(iters):
             path = self.simulate(start, policy, method="ValIter", survival_factor=survival_factor)
             # print(path)
             last_state = self.map_[path[-1]]
             if last_state in self.win_states:
                 won += 1
 
-            total_path_len += len(path)
+            path_len += len(path)
 
-        return won / num, total_path_len / num
+        return won / iters, path_len / iters
 
-    def check_dynam(self, start, policy, T, num=10000):
+    def check_dynam(self, start, policy, T, iters=10000):
         won = 0
-        total_path_len = 0
+        path_len = 0
 
-        for i in range(num):
+        for i in range(iters):
             path = self.simulate(start, policy, method="DynProg")
             last_state = self.map_[path[-1]]
             if last_state in self.win_states:
                 won += 1
 
-            total_path_len += len(path)
+            path_len += len(path)
 
-        return won / num, total_path_len / num
+        return won / iters, path_len / iters
 
 
 # animator class
@@ -477,6 +481,8 @@ class AnimateGame:
         self.maze.board[moves[0]][moves[1]] = 2
         self.maze.board[moves[2]][moves[3]] = -1
         self.maze.draw()
+
+        # reset locations
         self.maze.board[moves[0]][moves[1]] = 0
         self.maze.board[moves[2]][moves[3]] = 0
 
@@ -614,9 +620,6 @@ def survival_rate_valiter(maze):
 
 
 def survival_rate_dynprog(maze):
-    """
-    possible kwargs are minotaur_stay, avoid_minotaur, and min_path
-    """
     survive_prob = []
 
     start_A = (0, 0, 6, 5)
@@ -627,19 +630,22 @@ def survival_rate_dynprog(maze):
     for T in range(11, 19):
         V, policy = dynamic_programming(maze, T)
 
+        print("T =", T + 2, end=" ")
         rate = maze.survival_rate_dynamic(start_A, V)
 
         survive_prob.append(rate)
 
         # due to starting at t=0
-        ts.append(T+2)
+        ts.append(T + 2)
 
+    # in case animation was called befo
     plt.plot(ts, survive_prob, 'bo')
     plt.xlabel("T")
     plt.ylabel("Probability of winning")
     plt.show()
 
 
+# numerical checker
 def survival_dyn(maze):
     V, policy = dynamic_programming(maze, 14)
 
