@@ -322,18 +322,24 @@ class City:
         return path
 
 
+# Animator class
 class AnimateGame:
     def __init__(self, path):
-        self.maze = City()
+        self.city = City()
         self.path = path
 
     def animate(self, i):
         moves = self.path[i]
-        self.maze.board[moves[0]][moves[1]] = 2
-        self.maze.board[moves[2]][moves[3]] = -1
-        self.maze.draw(None, plot=False, arrows=False)
-        self.maze.board[moves[0]][moves[1]] = 0
-        self.maze.board[moves[2]][moves[3]] = 0
+        self.city.board[moves[0]][moves[1]] = 2
+        self.city.board[moves[2]][moves[3]] = -1
+        self.city.draw(None, plot=False, arrows=False)
+
+        self.city.board[moves[0]][moves[1]] = 0
+        self.city.board[moves[2]][moves[3]] = 0
+
+        # reset bank colors
+        for bank in self.city.banks:
+            self.city.board[bank[0]][bank[1]] = 1
 
 
 def value_iteration(env, gamma, epsilon):
@@ -397,26 +403,3 @@ def value_iteration(env, gamma, epsilon):
     policy = np.argmax(Q, 1)
     # Return the obtained policy
     return V, policy
-
-
-def survival_rate_valiter(maze):
-    """
-
-    """
-    # Mean lifetime
-    mean_lifetime = 30
-    # Discount factor
-    gamma = 1 - (1 / mean_lifetime)
-    # Threshold
-    epsilon = 0.0001
-
-    V, policy = value_iteration(maze, gamma, epsilon)
-
-    start_A = (0, 0, 6, 5)
-
-    rate, avg_path_len = maze.survival_rate_val(start_A, policy, survival_factor=gamma)
-
-    print("Rate of survival = ", rate)
-    print("Average lifetime = ", avg_path_len - 1)
-
-    return rate

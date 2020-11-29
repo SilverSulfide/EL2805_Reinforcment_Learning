@@ -27,7 +27,7 @@ class Minotaur:
             self.y += self.actions[move][0]
             self.x += self.actions[move][1]
 
-    def generate_valid_moves(self, board):
+    def generate_valid_moves_jump(self, board):
         for i in range(board.shape[0]):
             for j in range(board.shape[1]):
                 # doing the 0 move
@@ -36,7 +36,7 @@ class Minotaur:
                         temp_y = i + self.actions[move][0]
                         temp_x = j + self.actions[move][1]
 
-                        if temp_y != -1 and temp_x != -1:  #  and temp_y != board.shape[0] and temp_x != board.shape[1]
+                        if temp_y != -1 and temp_x != -1:
 
                             try:
                                 location = board[temp_y][temp_x]
@@ -56,55 +56,85 @@ class Minotaur:
                             except:
                                 dummy = 0
 
+    def generate_valid_moves(self, board):
+        for i in range(board.shape[0]):
+            for j in range(board.shape[1]):
+                # doing the 0 move
+                for move in self.actions:
+                    # FIXME: deleted here
+                    temp_y = i + self.actions[move][0]
+                    temp_x = j + self.actions[move][1]
+
+                    if temp_y != -1 and temp_x != -1 and temp_y != board.shape[0] and temp_x != board.shape[1]:
+                        self.valid_moves[(i, j)].append(move)
+
 
 class Maze:
 
-    def __init__(self, stay=False):
+    def __init__(self, stay=False, jump=False):
         # reward values
         self.STEP_REWARD = 0
-        self.EATEN_REWARD = -100
+        self.EATEN_REWARD = 0
         self.WIN_REWARD = 1
         self.IMPOSSIBLE_REWARD = -100
 
+        # wall locations
         self.walls = [[0, 2], [1, 2], [2, 2], [3, 2], [5, 1], [5, 2], [5, 3], [5, 4], [5, 5], [5, 6], [6, 4], [1, 5],
                       [2, 5], [3, 5], [2, 5], [2, 6], [2, 7]]
 
+        # init board
         self.board = self.__init_board()
-        self.minotaur = Minotaur(stay=stay)
-        self.minotaur.generate_valid_moves(self.board)
 
+        self.jump = jump
+
+        # init minotaur
+        self.minotaur = Minotaur(stay=stay)
+        if jump:
+            self.minotaur.generate_valid_moves_jump(self.board)
+        else:
+            self.minotaur.generate_valid_moves(self.board)
+
+        # init colours
         self.colors = {0: 'WHITE', 1: 'BLACK', 2: 'GREEN', -1: 'RED'}
 
-        self.states, self.eaten_states, self.win_states, self.map_ = self.__states()
+        # generate states
+        if jump:
+            self.states, self.eaten_states, self.win_states, self.map_ = self.__states_jump()
+        else:
+            self.states, self.eaten_states, self.win_states, self.map_ = self.__states()
         self.n_states = len(self.states)
 
+        # generate actions
         self.actions = self.__actions()
         self.n_actions = len(self.actions)
 
-        self.transition_probabilities = self.__transitions()
+        # generate transition probabilities
+        self.transition_probabilities = self.__transitions(jump=jump)
 
-        self.rewards = self.__rewards()
+        # generate rewards
+        self.rewards = self.__rewards(jump=jump)
 
     def __init_board(self):
         board = np.zeros((7, 8))
+        # mark walls with 1
         for wall in self.walls:
             board[wall[0]][wall[1]] = 1
         return board
 
-    def draw(self):
+    def draw(self, plot=False):
         # Give a color to each cell
         rows, cols = self.board.shape
         colored_maze = [[self.colors[self.board[j, i]] for i in range(cols)] for j in range(rows)]
 
-        # Draw start and end
-        # FIXME: hardcoded
+        # Draw start and end locations
         text_maze = [['A', None, None, None, None, None, None, None]]
         for i in range(5):
             text_maze.append([None, None, None, None, None, None, None, None])
         text_maze.append([None, None, None, None, None, 'B', None, None])
 
         # Create figure of the size of the maze
-        # fig = plt.figure(1, figsize=(cols, rows))
+        if plot:
+            fig = plt.figure(1, figsize=(cols, rows))
 
         # Remove the axis ticks and add title
         ax = plt.gca()
@@ -126,14 +156,22 @@ class Maze:
             cell.set_height(1.0 / rows)
             cell.set_width(1.0 / cols)
 
+        if plot:
+            plt.show()
+
     def __actions(self):
         actions = {0: (0, 0), 1: (0, -1), 2: (0, 1), 3: (-1, 0), 4: (1, 0)}
         return actions
 
-    def __states(self):
+    # jumping over walls version
+    def __states_jump(self):
+        # map all states to hashes
         states = {}
+        # store eaten states
         eaten_states = []
+        # store won states
         win_states = []
+        # reverse hash map
         map_ = {}
         s = 0
         for Py in range(self.board.shape[0]):
@@ -153,7 +191,33 @@ class Maze:
 
         return states, eaten_states, win_states, map_
 
-    def __move(self, state, action):
+    # walking inside walls version
+    def __states(self):
+        states = {}
+        eaten_states = []
+        win_states = []
+        map_ = {}
+        s = 0
+        for Py in range(self.board.shape[0]):
+            for Px in range(self.board.shape[1]):
+                for My in range(self.board.shape[0]):
+                    for Mx in range(self.board.shape[1]):
+                        # FIXME: deleted here
+                        if self.board[Py, Px] != 1:
+                            if Py == 6 and Px == 5:
+                                win_states.append(s)
+
+                            elif Py == My and Px == Mx:
+                                eaten_states.append(s)
+
+                            map_[(Py, Px, My, Mx)] = s
+                            states[s] = (Py, Px, My, Mx)
+                            s += 1
+
+        return states, eaten_states, win_states, map_
+
+    # jumping version
+    def __move_jump(self, state, action):
         """
             State is a hash value.
             Action is an integer
@@ -196,7 +260,48 @@ class Maze:
 
         return next_states
 
-    def __rewards(self):
+    # walking through walls version
+    def __move(self, state, action):
+        """
+            State is a hash value.
+            Action is an integer
+            returns list of hashed next states given s and a
+        """
+        # Compute the future position given current (state, action)
+        # The minotaur stops moving, either to eat your body,
+        # or because you have escaped and he is hungry and wants to rest.
+        # doesn't matter since the game ends if you die or ends if you win
+        if state in self.eaten_states or state in self.win_states:
+            return [state]
+
+        row = self.states[state][0] + self.actions[action][0]
+        col = self.states[state][1] + self.actions[action][1]
+
+        # Is the future position an impossible one ?
+        hitting_maze_walls = (row == -1) or (row == self.board.shape[0]) or \
+                             (col == -1) or (col == self.board.shape[1]) or \
+                             (self.board[row, col] == 1)
+
+        # Based on the impossiblity check return the next state.
+        if hitting_maze_walls:
+            row = self.states[state][0]
+            col = self.states[state][1]
+
+        mino_moves = self.minotaur.valid_moves[self.states[state][-2:]]
+        next_states = []
+
+        # Create all possible minotaur positions from state s.
+        for move in mino_moves:
+            m_row = self.states[state][2] + self.actions[move][0]
+            m_col = self.states[state][3] + self.actions[move][1]
+
+            # FIXME: deleted jumping
+
+            next_states.append(self.map_[(row, col, m_row, m_col)])
+
+        return next_states
+
+    def __rewards(self, jump=False):
 
         rewards = np.zeros((self.n_states, self.n_actions))
 
@@ -205,7 +310,10 @@ class Maze:
             for a in range(self.n_actions):
 
                 # List of possible next states from state s, given action a.
-                next_states = self.__move(s, a)
+                if jump:
+                    next_states = self.__move_jump(s, a)
+                else:
+                    next_states = self.__move(s, a)
 
                 # we don't know where the minotaur will go, so we need to add a weight to the reward,
                 # because the action has a probability to move to different states, with different rewards.
@@ -241,7 +349,7 @@ class Maze:
 
         return rewards
 
-    def __transitions(self):
+    def __transitions(self, jump=False):
         """ Computes the transition probabilities for every state action pair.
             :return numpy.tensor transition probabilities: tensor of transition
             probabilities of dimension S*S*A
@@ -254,7 +362,10 @@ class Maze:
         # are deterministic.
         for s in range(self.n_states):
             for a in range(self.n_actions):
-                next_s = self.__move(s, a)
+                if jump:
+                    next_s = self.__move_jump(s, a)
+                else:
+                    next_s = self.__move(s, a)
 
                 # if already eaten or won, then prob == 1
                 prob = 1.0 / len(next_s)
@@ -277,7 +388,10 @@ class Maze:
             path.append(start)
             while t < horizon:
                 # Move to next state given the policy and the current state
-                next_s = self.__move(s, policy[s, t])
+                if self.jump:
+                    next_s = self.__move_jump(s, policy[s, t])
+                else:
+                    next_s = self.__move(s, policy[s, t])
                 next_s = np.random.choice(next_s)
                 # Add the position in the maze corresponding to the next state
                 # to the path
@@ -298,14 +412,17 @@ class Maze:
 
                 # check if not dead
                 if survival_factor is not None:
-                    if np.random.random() < ((1 - survival_factor)*(survival_factor)**t):
+                    if np.random.random() > survival_factor:
                         break
 
                 # Move to next state given the policy and the current state
                 if s in self.eaten_states or s in self.win_states:
                     break
 
-                next_s = self.__move(s, policy[s])
+                if self.jump:
+                    next_s = self.__move_jump(s, policy[s])
+                else:
+                    next_s = self.__move(s, policy[s])
                 # Add the position in the maze corresponding to the next state
                 # to the path
                 next_s = np.random.choice(next_s)
@@ -324,11 +441,9 @@ class Maze:
 
         return won
 
-
     def survival_rate_val(self, start, policy, survival_factor, num=10000):
         won = 0
         total_path_len = 0
-
         for i in range(num):
             path = self.simulate(start, policy, method="ValIter", survival_factor=survival_factor)
             # print(path)
@@ -341,6 +456,7 @@ class Maze:
         return won / num, total_path_len / num
 
 
+# animator class
 class AnimateGame:
     def __init__(self, path):
         self.maze = Maze()
@@ -353,6 +469,10 @@ class AnimateGame:
         self.maze.draw()
         self.maze.board[moves[0]][moves[1]] = 0
         self.maze.board[moves[2]][moves[3]] = 0
+
+        # redraw walls
+        for wall in self.maze.walls:
+            self.maze.board[wall[0]][wall[1]] = 1
 
 
 def dynamic_programming(env, horizon):
