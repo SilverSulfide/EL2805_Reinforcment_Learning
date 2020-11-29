@@ -1,6 +1,3 @@
-# Created by:
-# markuz@kth.se 970328-T171
-# amper@kth.se 971231-3817
 
 import sys
 
