@@ -61,7 +61,6 @@ class Minotaur:
             for j in range(board.shape[1]):
                 # doing the 0 move
                 for move in self.actions:
-                    # FIXME: deleted here
                     temp_y = i + self.actions[move][0]
                     temp_x = j + self.actions[move][1]
 
@@ -202,7 +201,6 @@ class Maze:
             for Px in range(self.board.shape[1]):
                 for My in range(self.board.shape[0]):
                     for Mx in range(self.board.shape[1]):
-                        # FIXME: deleted here
                         if self.board[Py, Px] != 1:
                             if Py == 6 and Px == 5:
                                 win_states.append(s)
@@ -294,8 +292,6 @@ class Maze:
         for move in mino_moves:
             m_row = self.states[state][2] + self.actions[move][0]
             m_col = self.states[state][3] + self.actions[move][1]
-
-            # FIXME: deleted jumping
 
             next_states.append(self.map_[(row, col, m_row, m_col)])
 
@@ -628,14 +624,15 @@ def survival_rate_dynprog(maze):
     ts = []
 
     # for each T, compute the amount of wins when following the optimal path
-    for T in range(12, 25):
+    for T in range(11, 19):
         V, policy = dynamic_programming(maze, T)
 
         rate = maze.survival_rate_dynamic(start_A, V)
 
         survive_prob.append(rate)
 
-        ts.append(T)
+        # due to starting at t=0
+        ts.append(T+2)
 
     plt.plot(ts, survive_prob, 'bo')
     plt.xlabel("T")

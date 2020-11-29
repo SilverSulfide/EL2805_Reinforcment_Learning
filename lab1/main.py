@@ -16,21 +16,17 @@ def maze_main(args):
     path = maze.simulate((0, 0, 6, 5), policy, method='DynProg')
 
     # init animation
-    total = ut.AnimateGame(path)
-    fig = plt.figure(1, figsize=(total.maze.board.shape[1], total.maze.board.shape[1]))
-
-    anim = animation.FuncAnimation(fig, total.animate, frames=len(path), interval=1500)
-    anim.save('results/mino.gif', writer='imagemagick')
+    # total = ut.AnimateGame(path)
+    # fig = plt.figure(1, figsize=(total.maze.board.shape[1], total.maze.board.shape[1]))
+    #
+    # anim = animation.FuncAnimation(fig, total.animate, frames=len(path), interval=1500)
+    # anim.save('results/mino.gif', writer='imagemagick')
 
     # ------------- Dynamic Programming survival --------------
     #ut.survival_rate_dynprog(maze)
 
-    # ------------- Dynamic Programming survival with staying --------------
-    #maze2 = ut.Maze(stay=True)
-    #ut.survival_rate_dynprog(maze2)
-
     # ------------- Value iteration --------------
-    #ut.survival_rate_valiter(maze)
+    ut.survival_rate_valiter(maze)
 
 
 def city_main(args):
