@@ -142,10 +142,12 @@ class City:
         ax.set_yticks([])
 
         if arrows:
+            colored_maze[1][2] = 'WHITE'
+            colored_maze[1][0] = 'RED'
             for Ry in range(self.board.shape[0]):
                 for Rx in range(self.board.shape[1]):
-                    if Ry != 1 or Rx != 2:
-                        s = self.map_[(Ry, Rx, 1, 2)]
+                    if Ry != 1 or Rx != 0:
+                        s = self.map_[(Ry, Rx, 1, 0)]
                         text_maze[Ry][Rx] = self.action_arrows[policy[s]]
 
         # Create a table to color
