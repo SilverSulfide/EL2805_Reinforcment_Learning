@@ -1,7 +1,3 @@
-# Created by:
-# Martins Kuznecovs 970328-T171
-# Andrzej Perzanowski 971231-3817
-
 import numpy as np
 import matplotlib.pyplot as plt
 from collections import defaultdict
