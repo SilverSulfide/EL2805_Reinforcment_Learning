@@ -455,6 +455,20 @@ class Maze:
 
         return won / num, total_path_len / num
 
+    def check_dynam(self, start, policy, T, num=10000):
+        won = 0
+        total_path_len = 0
+
+        for i in range(num):
+            path = self.simulate(start, policy, method="DynProg")
+            last_state = self.map_[path[-1]]
+            if last_state in self.win_states:
+                won += 1
+
+            total_path_len += len(path)
+
+        return won / num, total_path_len / num
+
 
 # animator class
 class AnimateGame:
@@ -627,3 +641,18 @@ def survival_rate_dynprog(maze):
     plt.xlabel("T")
     plt.ylabel("Probability of winning")
     plt.show()
+
+
+def survival_dyn(maze):
+    V, policy = dynamic_programming(maze, 14)
+
+    # print(V.shape[1])
+
+    start_A = (0, 0, 6, 5)
+
+    rate, avg_path_len = maze.check_dynam(start_A, policy, 14)
+
+    print("Rate of survival = ", rate)
+    print("Average lifetime = ", avg_path_len - 1)
+
+    return rate
