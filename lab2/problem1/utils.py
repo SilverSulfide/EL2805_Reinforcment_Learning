@@ -35,10 +35,10 @@ class NN(nn.Module):
         self.layer_activation = nn.ReLU()
 
         # Create input layer with ReLU activation
-        self.input_layer = nn.Linear(input_size, hidden_size*2)
+        self.input_layer = nn.Linear(input_size, hidden_size)
 
         # Create a hidden layer
-        self.hidden_layer = nn.Linear(hidden_size*2, hidden_size)
+        self.hidden_layer = nn.Linear(hidden_size, hidden_size)
 
         # Create output layer
         self.output_layer = nn.Linear(hidden_size, output_size)

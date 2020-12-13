@@ -1,12 +1,13 @@
 import numpy as np
 import gym
 import torch
+
+torch.manual_seed(0)
+np.random.seed(0)
+
 import matplotlib.pyplot as plt
 from collections import namedtuple
 from tqdm import trange
-from DQN_agent import RandomAgent
-
-import torch.nn.functional as F
 
 import utils as ut
 
@@ -23,8 +24,9 @@ def running_average(x, N):
     return y
 
 
-# Import and initialize the discrete Lunar Laner Environment
+# Import and initialize the discrete Lunar Lander Environment
 env = gym.make('LunarLander-v2')
+env.seed(0)
 env.reset()
 
 # Parameters
@@ -33,18 +35,19 @@ discount_factor = 0.95  # Value of the discount factor
 n_ep_running_average = 50  # Running average of 50 episodes
 n_actions = env.action_space.n  # Number of available actions
 dim_state = len(env.observation_space.high)  # State dimensionality
-C = 150*3
 
 # We will use these variables to compute the average episodic reward and
 # the average number of steps per episode
 episode_reward_list = []  # this list contains the total reward per episode
 episode_number_of_steps = []  # this list contains the number of steps per episode
+loss_list = []
 
 # Random agent initialization
 # agent = RandomAgent(n_actions)
 
 # get buffer
-buffer = ut.ExperienceReplayBuffer(maximum_length=30000)
+buffer_len = 30000
+buffer = ut.ExperienceReplayBuffer(maximum_length=buffer_len)
 Experience = namedtuple('Experience',
                         ['state', 'action', 'reward', 'next_state', 'done'])
 
@@ -59,7 +62,7 @@ gamma = 0.99
 greedy_sampler = ut.EpsilonSample(int(0.9 * N_episodes), n_actions)
 
 # ---- Fill up the buffer ----- #
-buffer_init = 1000
+buffer_init = 300
 state = env.reset()
 
 best_loss = 0
@@ -87,6 +90,7 @@ print("Buffer initialised")
 # ------ Training process ----- #
 EPISODES = trange(N_episodes, desc='Episode: ', leave=True)
 
+C = int(buffer_len / batch_size)
 c = 0
 
 for i in EPISODES:
@@ -100,8 +104,10 @@ for i in EPISODES:
     total_episode_reward = 0.
     t = 0
 
+    temp_loss = []
+
     while not done:
-        if best_loss > 50:
+        if best_loss > 150:
             env.render()
 
         # Create state tensor, remember to use single precision (torch.float32)
@@ -154,10 +160,11 @@ for i in EPISODES:
         actions_tensor = torch.tensor([actions]).long().transpose(0, 1).to(device)
         values = DQN.forward(states_tensor).gather(1, actions_tensor)
 
-
         loss = DQN.loss(values, targets)
 
         DQN.backward(loss)
+
+        temp_loss.append(loss.detach().item())
 
         # if C steps have passed
         if c % C == 0:
@@ -167,6 +174,7 @@ for i in EPISODES:
     # Append episode reward and total number of steps
     episode_reward_list.append(total_episode_reward)
     episode_number_of_steps.append(t)
+    loss_list.append(np.mean(temp_loss))
 
     # Close environment
     env.close()
@@ -176,10 +184,10 @@ for i in EPISODES:
     # of the last episode, average reward, average number of steps)
     avg_reward = running_average(episode_reward_list, n_ep_running_average)[-1]
     EPISODES.set_description(
-        "Episode {} - Reward/Steps: {:.1f}/{} - Avg. Reward/Steps: {:.1f}/{}".format(
+        "Episode {} - Reward/Steps: {:.1f}/{} - Avg. Reward/Steps: {:.1f}/{} - Mean loss: {:.1f}".format(
             i, total_episode_reward, t,
             avg_reward,
-            running_average(episode_number_of_steps, n_ep_running_average)[-1]))
+            running_average(episode_number_of_steps, n_ep_running_average)[-1], np.mean(temp_loss)))
 
     if avg_reward > 50 and avg_reward > best_loss:
         best_loss = avg_reward
