@@ -53,7 +53,7 @@ Experience = namedtuple('Experience',
                         ['state', 'action', 'reward', 'next_state', 'done'])
 
 # ---- Fill up the buffer ----- #
-# buffer_init = buffer_len
+# Buffer_init = buffer_len
 buffer_init = 300
 state = env.reset()
 agent = RandomAgent(m)

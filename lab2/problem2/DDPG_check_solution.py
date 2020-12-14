@@ -60,7 +60,7 @@ CONFIDENCE_PASS = 125
 episode_reward_list = []  # Used to store episodes reward
 
 # ---- FOr plotting episodic reward -----
-# list of episodes
+# List of episodes
 I = []
 
 # Reward

@@ -15,7 +15,7 @@ class OUNoise:
         self.mu = mu
 
     def select(self):
-
+        # to make sure to start at t=0
         current = self.n
 
         n_t = -self.mu * self.n + np.random.multivariate_normal([0, 0], self.sigma)
