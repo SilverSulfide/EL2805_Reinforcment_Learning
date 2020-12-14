@@ -88,6 +88,7 @@ class City:
         self.STEP_REWARD = 0
         self.BANK_REWARD = 10
         self.CAUGHT_REWARD = -50
+        # can be 0
         self.IMPOSSIBLE_REWARD = -10000000000
 
         self.banks = [[0, 0], [2, 0], [0, 5], [2, 5]]

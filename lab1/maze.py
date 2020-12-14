@@ -75,6 +75,7 @@ class Maze:
         self.STEP_REWARD = 0
         self.EATEN_REWARD = 0
         self.WIN_REWARD = 1
+        # can be zero
         self.IMPOSSIBLE_REWARD = -100
 
         # wall locations

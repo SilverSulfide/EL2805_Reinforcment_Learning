@@ -74,6 +74,7 @@ def city_main():
     anim.save('results/bank.gif', writer='imagemagick')
     plt.show()
 
+
 if __name__ == "__main__":
     import argparse
 
