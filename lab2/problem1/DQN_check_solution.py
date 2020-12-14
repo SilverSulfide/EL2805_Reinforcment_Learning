@@ -19,7 +19,11 @@ import gym
 import torch
 from tqdm import trange
 
+from mpl_toolkits.mplot3d import Axes3D
+import matplotlib.pyplot as plt
+
 import utils as ut
+import DQN_agent as RandAgent
 
 
 def running_average(x, N):
@@ -39,10 +43,10 @@ env = gym.make('LunarLander-v2')
 env.reset()
 
 # Load model
+# FIXME: cpu or cuda:0
+checkpoint = torch.load('checkpoint.pth', map_location=torch.device('cpu'))
+device = 'cpu'
 
-checkpoint = torch.load('checkpoint.pth')
-
-device = 'cuda:0'
 n_actions = env.action_space.n  # Number of available actions
 dim_state = len(env.observation_space.high)  # State dimensionality
 hidden_dimension = 64
@@ -57,17 +61,25 @@ CONFIDENCE_PASS = 50
 # Reward
 episode_reward_list = []  # Used to store episodes reward
 
+# ---- FOr plotting episodic reward -----
+# list of episodes
+I = []
+
+# Reward
+episode_reward_list_random_agent = []  # Used to store episodes reward (random agent)
+
 # Simulate episodes
 print('Checking solution...')
 EPISODES = trange(N_EPISODES, desc='Episode: ', leave=True)
 for i in EPISODES:
+    I.append(i)
     EPISODES.set_description("Episode {}".format(i))
     # Reset enviroment data
     done = False
     state = env.reset()
     total_episode_reward = 0.
     while not done:
-        #env.render()
+        # env.render()
         # Get next state and reward.  The done variable
         # will be True if you reached the goal position,
         # False otherwise
@@ -101,3 +113,114 @@ else:
         "Your policy did not pass the test! The average reward of your policy needs to be greater than {} with 95% "
         "confidence".format(
             CONFIDENCE_PASS))
+
+EPISODES = trange(N_EPISODES, desc='Episode: ', leave=True)
+for i in EPISODES:
+    EPISODES.set_description("Episode {}".format(i))
+    # Reset enviroment data
+    done = False
+    state = env.reset()
+    total_episode_reward = 0.
+    while not done:
+        # Run random agent
+        stupid_action = np.random.randint(0, n_actions)
+
+        next_state, reward, done, _ = env.step(stupid_action)
+
+        # Update episode reward
+        total_episode_reward += reward
+
+        # Update state for next iteration
+        state = next_state
+
+    # Append episode reward
+    episode_reward_list_random_agent.append(total_episode_reward)
+
+    # Close environment
+    env.close()
+
+plt.plot(I, episode_reward_list, label="Our model")
+plt.plot(I, episode_reward_list_random_agent, label="Random model")
+plt.xlabel('Episodes')
+plt.ylabel('Reward for episode')
+plt.legend(loc="lower left")
+plt.show()
+
+"""
+# ---- Plot the max Q value ----
+fig = plt.figure()
+ax = fig.add_subplot(111, projection='3d')
+xs = np.arange(0, 1.5, 0.1).tolist()
+ys = np.arange(-np.pi, np.pi, 0.2).tolist()
+
+Y = []
+W = []
+Z = []
+
+# FIXME: passing net each time
+def fun(x, y, net):  
+    state = np.array([0, x, 0, 0, y, 0, 0, 0])
+    Q = net.forward(torch.tensor([state], dtype=torch.float32).to(device))
+    #print(Q)
+    val = Q.max(1)[0].item()
+    #print(val)
+    if y == 0.058407346410209726:
+        print(x)
+        print(val)
+    return val
+
+# Create the triplets for plotting
+for i in range(len(xs)):
+    for j in range(len(ys)):
+        Y.append(xs[i])
+        W.append(ys[j])
+        Z.append(fun(xs[i], ys[j], DQN))
+
+
+ax.scatter(Y, W, Z)
+
+ax.set_xlabel('y')
+ax.set_ylabel('w')
+ax.set_zlabel('max Q value')
+
+plt.show()
+
+
+# ---- Plot the best action ----
+fig = plt.figure()
+ax = fig.add_subplot(111, projection='3d')
+xs = np.arange(0, 1.5, 0.1).tolist()
+ys = np.arange(-np.pi, np.pi, 0.2).tolist()
+
+
+Y = []
+W = []
+Z = []
+
+
+# FIXME: passing net each time
+def fun(x, y, net):  
+    state = np.array([0, x, 0, 0, y, 0, 0, 0])
+    Q = net.forward(torch.tensor([state], dtype=torch.float32).to(device))
+    #print(Q)
+    val = Q.max(1)[1].item()
+    #print(val)
+    return val
+
+# Create the triplets for plotting
+for i in range(len(xs)):
+    for j in range(len(ys)):
+        Y.append(xs[i])
+        W.append(ys[j])
+        Z.append(fun(xs[i], ys[j], DQN))
+
+
+ax.scatter(Y, W, Z)
+
+ax.set_xlabel('y')
+ax.set_ylabel('w')
+ax.set_zlabel('Best action')
+
+plt.show()
+"""
+
