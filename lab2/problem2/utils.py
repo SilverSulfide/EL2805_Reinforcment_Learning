@@ -16,11 +16,13 @@ class OUNoise:
 
     def select(self):
 
+        current = self.n
+
         n_t = -self.mu * self.n + np.random.multivariate_normal([0, 0], self.sigma)
 
         self.n = n_t
 
-        return n_t
+        return current
 
 
 class DDPG:

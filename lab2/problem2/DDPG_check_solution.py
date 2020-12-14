@@ -23,7 +23,7 @@ from mpl_toolkits.mplot3d import Axes3D
 import matplotlib.pyplot as plt
 
 import utils as ut
-import DQN_agent as RandAgent
+# import DQN_agent as RandAgent
 
 
 def running_average(x, N):
@@ -39,24 +39,22 @@ def running_average(x, N):
 
 
 # Import and initialize Mountain Car Environment
-env = gym.make('LunarLander-v2')
+env = gym.make('LunarLanderContinuous-v2')
 env.reset()
 
 # Load model
 # FIXME: cpu or cuda:0
-checkpoint = torch.load('checkpoint.pth', map_location=torch.device('cpu'))
+checkpoint = torch.load('actor_checkpoint.pth', map_location=torch.device('cpu'))
 device = 'cpu'
 
-n_actions = env.action_space.n  # Number of available actions
-dim_state = len(env.observation_space.high)  # State dimensionality
-hidden_dimension = 64
-DQN = ut.DQN(ut.net_builder, dim_state, n_actions, hidden_dimension, device)
 
-DQN.network.load_state_dict(checkpoint)
+DDPG = ut.DDPG(8, device)
+
+DDPG.actor_network.load_state_dict(checkpoint)
 
 # Parameters
 N_EPISODES = 50  # Number of episodes to run for trainings
-CONFIDENCE_PASS = 50
+CONFIDENCE_PASS = 125
 
 # Reward
 episode_reward_list = []  # Used to store episodes reward
@@ -67,7 +65,7 @@ I = []
 
 # Reward
 episode_reward_list_random_agent = []  # Used to store episodes reward (random agent)
-"""
+
 # Simulate episodes
 print('Checking solution...')
 EPISODES = trange(N_EPISODES, desc='Episode: ', leave=True)
@@ -83,9 +81,8 @@ for i in EPISODES:
         # Get next state and reward.  The done variable
         # will be True if you reached the goal position,
         # False otherwise
-        q_values = DQN.forward(torch.tensor([state]).to(device))
-        action = q_values.max(1)[1].item()
-        next_state, reward, done, _ = env.step(action)
+        action = DDPG.actor_network.inference(torch.tensor([state]).to(device))[0]
+        next_state, reward, done, _ = env.step(action.detach().numpy())
 
         # Update episode reward
         total_episode_reward += reward
@@ -114,6 +111,7 @@ else:
         "confidence".format(
             CONFIDENCE_PASS))
 
+"""
 EPISODES = trange(N_EPISODES, desc='Episode: ', leave=True)
 for i in EPISODES:
     EPISODES.set_description("Episode {}".format(i))
@@ -145,7 +143,7 @@ plt.xlabel('Episodes')
 plt.ylabel('Reward for episode')
 plt.legend(loc="lower left")
 plt.show()
-"""
+
 
 
 # ---- Plot the max Q value ----

@@ -1,4 +1,5 @@
 # Load packages
+
 import numpy as np
 import gym
 
@@ -35,7 +36,7 @@ env = gym.make('LunarLanderContinuous-v2')
 env.reset()
 
 # Parameters
-N_episodes = 300  # Number of episodes to run for training
+N_episodes = 330  # Number of episodes to run for training
 discount_factor = 0.99  # Value of gamma
 n_ep_running_average = 50  # Running average of 50 episodes
 m = len(env.action_space.high)  # dimensionality of the action
@@ -52,7 +53,8 @@ Experience = namedtuple('Experience',
                         ['state', 'action', 'reward', 'next_state', 'done'])
 
 # ---- Fill up the buffer ----- #
-buffer_init = buffer_len
+# buffer_init = buffer_len
+buffer_init = 300
 state = env.reset()
 agent = RandomAgent(m)
 
@@ -76,7 +78,8 @@ for i in range(buffer_init):
 print("Buffer initialised")
 
 # intialise NN
-device = 'cuda:0'
+# device = 'cuda:0'
+device = 'cpu'
 batch_size = 64
 DDPG = ut.DDPG(dim_state, device)
 
@@ -201,7 +204,7 @@ for i in EPISODES:
         best_loss = avg_reward
         print(best_loss)
         torch.save(DDPG.critic_network.state_dict(), 'critic_checkpoint.pth')
-        torch.save(DDPG.actor_network.state_dict(), 'critic_checkpoint.pth')
+        torch.save(DDPG.actor_network.state_dict(), 'actor_checkpoint.pth')
 
 # Plot Rewards and steps
 fig, ax = plt.subplots(nrows=1, ncols=2, figsize=(16, 9))
