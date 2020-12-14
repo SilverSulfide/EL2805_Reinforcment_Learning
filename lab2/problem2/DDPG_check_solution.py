@@ -44,13 +44,16 @@ env.reset()
 
 # Load model
 # FIXME: cpu or cuda:0
-checkpoint = torch.load('actor_checkpoint.pth', map_location=torch.device('cpu'))
 device = 'cpu'
+checkpoint = torch.load('actor_checkpoint.pth', map_location=torch.device(device))
+checkpoint2 = torch.load('critic_checkpoint.pth', map_location=torch.device(device))
+
 
 
 DDPG = ut.DDPG(8, device)
 
 DDPG.actor_network.load_state_dict(checkpoint)
+DDPG.critic_network.load_state_dict(checkpoint2)
 
 # Parameters
 N_EPISODES = 50  # Number of episodes to run for trainings
@@ -66,6 +69,8 @@ I = []
 # Reward
 episode_reward_list_random_agent = []  # Used to store episodes reward (random agent)
 
+
+"""
 # Simulate episodes
 print('Checking solution...')
 EPISODES = trange(N_EPISODES, desc='Episode: ', leave=True)
@@ -111,7 +116,7 @@ else:
         "confidence".format(
             CONFIDENCE_PASS))
 
-"""
+
 EPISODES = trange(N_EPISODES, desc='Episode: ', leave=True)
 for i in EPISODES:
     EPISODES.set_description("Episode {}".format(i))
@@ -143,7 +148,7 @@ plt.xlabel('Episodes')
 plt.ylabel('Reward for episode')
 plt.legend(loc="lower left")
 plt.show()
-
+"""
 
 
 # ---- Plot the max Q value ----
@@ -159,67 +164,31 @@ Z = []
 # FIXME: passing net each time
 def fun(x, y, net):
     state = np.array([0, x, 0, 0, y, 0, 0, 0])
-    Q = net.forward(torch.tensor([state], dtype=torch.float32).to(device))
+
+    action = DDPG.actor_network.inference(torch.tensor([state], dtype=torch.float32)).to(device)
+
     #print(Q)
-    val = Q.max(1)[0].item()
-    #print(val)
-    if y == 0.058407346410209726:
-        print(x)
-        print(val)
-    return val
+    val = DDPG.critic_network.forward(torch.tensor([state], dtype=torch.float32), action).to(device)
+
+    value = val[0].detach().numpy()[0]
+    #print(value)
+
+    return value
 
 # Create the triplets for plotting
 for i in range(len(xs)):
     for j in range(len(ys)):
         Y.append(xs[i])
         W.append(ys[j])
-        Z.append(fun(xs[i], ys[j], DQN))
+        Z.append(fun(xs[i], ys[j], DDPG))
 
 
 ax.scatter(Y, W, Z)
 
 ax.set_xlabel('y')
 ax.set_ylabel('w')
-ax.set_zlabel('max Q value')
+ax.set_zlabel('Q value')
 
 plt.show()
 
-
-# ---- Plot the best action ----
-fig = plt.figure()
-ax = fig.add_subplot(111, projection='3d')
-xs = np.arange(0, 1.5, 0.1).tolist()
-ys = np.arange(-np.pi, np.pi, 0.2).tolist()
-
-
-Y = []
-W = []
-Z = []
-
-
-# FIXME: passing net each time
-def fun(x, y, net):
-    state = np.array([0, x, 0, 0, y, 0, 0, 0])
-    Q = net.forward(torch.tensor([state], dtype=torch.float32).to(device))
-    #print(Q)
-    val = Q.max(1)[1].item()
-    #print(val)
-    return val
-
-# Create the triplets for plotting
-for i in range(len(xs)):
-    for j in range(len(ys)):
-        Y.append(xs[i])
-        W.append(ys[j])
-        Z.append(fun(xs[i], ys[j], DQN))
-
-
-ax.scatter(Y, W, Z)
-
-ax.set_xlabel('y')
-ax.set_ylabel('w')
-ax.set_zlabel('Best action')
-
-plt.show()
-"""
 
