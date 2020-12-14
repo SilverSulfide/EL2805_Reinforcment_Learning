@@ -88,7 +88,7 @@ class City:
         self.STEP_REWARD = 0
         self.BANK_REWARD = 10
         self.CAUGHT_REWARD = -50
-        self.IMPOSSIBLE_REWARD = -10000000000
+        self.IMPOSSIBLE_REWARD = 0
 
         self.banks = [[0, 0], [2, 0], [0, 5], [2, 5]]
         self.police_station = [1, 2]
@@ -142,10 +142,14 @@ class City:
         ax.set_yticks([])
 
         if arrows:
+
+            colored_maze[1][2] = "WHITE"
+            colored_maze[1][0] = "RED"
+
             for Ry in range(self.board.shape[0]):
                 for Rx in range(self.board.shape[1]):
-                    if Ry != 1 or Rx != 2:
-                        s = self.map_[(Ry, Rx, 1, 2)]
+                    if Ry != 1 or Rx != 0:
+                        s = self.map_[(Ry, Rx, 1, 0)]
                         text_maze[Ry][Rx] = self.action_arrows[policy[s]]
 
         # Create a table to color
@@ -252,9 +256,14 @@ class City:
                     if next_s in self.caught_states:
                         prob_weighted_reward += self.CAUGHT_REWARD
 
+                    # make sure we dont get bank reward when game reinitialises.
+                    elif s in self.caught_states:
+                        prob_weighted_reward += self.STEP_REWARD
+
                     # handle bank state:
                     elif next_s in self.bank_states:
                         prob_weighted_reward += self.BANK_REWARD
+
 
                     # Reward for hitting a wall
                     elif s == next_s and a != 0:

@@ -62,9 +62,9 @@ class Maze:
     def __init__(self, stay=False):
         # reward values
         self.STEP_REWARD = 0
-        self.EATEN_REWARD = -100
+        self.EATEN_REWARD = 0
         self.WIN_REWARD = 1
-        self.IMPOSSIBLE_REWARD = -100
+        self.IMPOSSIBLE_REWARD = 0
 
         self.walls = [[0, 2], [1, 2], [2, 2], [3, 2], [5, 1], [5, 2], [5, 3], [5, 4], [5, 5], [5, 6], [6, 4], [1, 5],
                       [2, 5], [3, 5], [2, 5], [2, 6], [2, 7]]
@@ -340,6 +340,23 @@ class Maze:
 
         return won / num, total_path_len / num
 
+    def check_dynam(self, start, policy, T, num=20000):
+        won = 0
+        total_path_len = 0
+
+        for i in range(num):
+            path = self.simulate(start, policy, method="DynProg")
+            # print(path)
+            last_state = self.map_[path[-1]]
+            if last_state in self.win_states:
+                won += 1
+            #else:
+                #print(path)
+
+            total_path_len += len(path)
+
+        return won / num, total_path_len / num
+
 
 class AnimateGame:
     def __init__(self, path):
@@ -494,16 +511,32 @@ def survival_rate_dynprog(maze):
     ts = []
 
     # for each T, compute the amount of wins when following the optimal path
-    for T in range(12, 25):
+    for T in range(11, 19):
         V, policy = dynamic_programming(maze, T)
 
         rate = maze.survival_rate_dynamic(start_A, V)
 
         survive_prob.append(rate)
 
-        ts.append(T)
+        ts.append(T+2)
 
     plt.plot(ts, survive_prob, 'bo')
     plt.xlabel("T")
     plt.ylabel("Probability of winning")
     plt.show()
+
+
+def survival_dyn(maze):
+
+    V, policy = dynamic_programming(maze, 14)
+
+    #print(V.shape[1])
+
+    start_A = (0, 0, 6, 5)
+
+    rate, avg_path_len = maze.check_dynam(start_A, policy, 14)
+
+    print("Rate of survival = ", rate)
+    print("Average lifetime = ", avg_path_len - 1)
+
+    return rate

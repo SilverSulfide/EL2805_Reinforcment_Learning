@@ -46,7 +46,7 @@ class Maze:
     def __init__(self, stay=True):
         # reward values
         self.STEP_REWARD = 0
-        self.EATEN_REWARD = -1
+        self.EATEN_REWARD = 0
         self.WIN_REWARD = 1
         self.IMPOSSIBLE_REWARD = 0
 
@@ -136,6 +136,9 @@ class Maze:
                             states[s] = (Py, Px, My, Mx)
                             s += 1
 
+        #d = (0,0, 6, 5)
+        #print(map_[d])
+
         return states, eaten_states, win_states, map_
 
     def __move(self, state, action):
@@ -210,6 +213,7 @@ class Maze:
                     # Handle winning:
                     elif next_s in self.win_states:
                         prob_weighted_reward += self.WIN_REWARD
+                        # equivalent to simply set the reward equal to it here if rest 0.
 
                     # Reward for hitting a wall
                     elif s == next_s and a != 0:
@@ -281,11 +285,11 @@ class Maze:
 
                 # check if not dead
                 if survival_factor is not None:
-                    if np.random.random() > survival_factor:
+                    if np.random.random() >= survival_factor:
                         break
 
                 # stop to check if optimum can be found
-                #if t == 16:
+                #if t == 15:
                     #break
 
                 # Move to next state given the policy and the current state
@@ -301,6 +305,8 @@ class Maze:
                 t += 1
                 s = next_s
 
+        #print(len(path))
+
         return path
 
 
@@ -312,12 +318,27 @@ class Maze:
 
         return won
 
-    def survival_rate_val(self, start, policy, survival_factor, num=10000):
+    def survival_rate_val(self, start, policy, survival_factor, num=20000):
         won = 0
         total_path_len = 0
 
         for i in range(num):
             path = self.simulate(start, policy, method="ValIter", survival_factor=survival_factor)
+            # print(path)
+            last_state = self.map_[path[-1]]
+            if last_state in self.win_states:
+                won += 1
+
+            total_path_len += len(path)
+
+        return won / num, total_path_len / num
+
+    def check_dynam(self, start, policy, T, num=10000):
+        won = 0
+        total_path_len = 0
+
+        for i in range(num):
+            path = self.simulate(start, policy, method="DynProg")
             # print(path)
             last_state = self.map_[path[-1]]
             if last_state in self.win_states:
@@ -481,16 +502,36 @@ def survival_rate_dynprog(maze):
     ts = []
 
     # for each T, compute the amount of wins when following the optimal path
-    for T in range(12, 25):
+    for T in range(11, 19):
         V, policy = dynamic_programming(maze, T)
+        print("policy shape: ", policy.shape[1])
 
         rate = maze.survival_rate_dynamic(start_A, V)
 
         survive_prob.append(rate)
 
-        ts.append(T)
+        # Because of the way we defined our parameters in the code
+        ts.append(T+2)
 
     plt.plot(ts, survive_prob, 'bo')
     plt.xlabel("T")
     plt.ylabel("Probability of winning")
     plt.show()
+
+
+
+def survival_dyn(maze):
+
+
+    V, policy = dynamic_programming(maze, 14)
+
+    # print(V.shape[1])
+
+    start_A = (0, 0, 6, 5)
+
+    rate, avg_path_len = maze.check_dynam(start_A, policy, 14)
+
+    print("Rate of survival = ", rate)
+    print("Average lifetime = ", avg_path_len - 1)
+
+    return rate
