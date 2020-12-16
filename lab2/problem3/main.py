@@ -14,9 +14,10 @@ import matplotlib.pyplot as plt
 from tqdm import trange
 
 import utils as ut
-from DDPG_agent import RandomAgent
 
-from DDPG_soft_updates import soft_updates
+from torch.distributions import MultivariateNormal
+
+
 
 
 def running_average(x, N):
@@ -37,8 +38,10 @@ env.reset()
 env.seed(400)
 
 # Parameters
-N_episodes = 500  # Number of episodes to run for training
+N_episodes = 1600  # Number of episodes to run for training
 discount_factor = 0.99  # Value of gamma
+epsilon = 0.2
+M = 10
 n_ep_running_average = 50  # Running average of 50 episodes
 m = len(env.action_space.high)  # dimensionality of the action
 dim_state = len(env.observation_space.high)
@@ -47,42 +50,11 @@ dim_state = len(env.observation_space.high)
 episode_reward_list = []  # Used to save episodes reward
 episode_number_of_steps = []
 
-# get buffer
-buffer_len = 30000
-buffer = ut.ExperienceReplayBuffer(maximum_length=buffer_len)
-Experience = namedtuple('Experience',
-                        ['state', 'action', 'reward', 'next_state', 'done'])
-
-# ---- Fill up the buffer ----- #
-# Buffer_init = buffer_len
-buffer_init = 400
-state = env.reset()
-agent = RandomAgent(m)
-
-for i in range(buffer_init):
-    # select random action
-    action = agent.forward(state)
-    # Get next state and reward.  The done variable
-    # will be True if you reached the goal position,
-    # False otherwise
-    next_state, reward, done, _ = env.step(action)
-
-    # Update state for next iteration
-    state = next_state
-    # sample updates
-    exp = Experience(state, action, reward, next_state, done)
-    buffer.append(exp)
-
-    if done:
-        state = env.reset()
-
-print("Buffer initialised")
-
 # intialise NN
 # device = 'cuda:0'
 device = 'cpu'
 batch_size = 64
-DDPG = ut.DDPG(dim_state, device)
+PPO = ut.PPO(dim_state, device)
 
 print("NN initalised")
 
@@ -93,10 +65,11 @@ EPISODES = trange(N_episodes, desc='Episode: ', leave=True)
 best_loss = 0
 q = 0
 
-for i in EPISODES:
+# Initialise the buffer
+buffer = ut.Buffer()
 
-    # intialise sampler
-    ou_noise = ut.OUNoise()
+
+for i in EPISODES:
 
     # Reset enviroment data
     done = False
@@ -114,16 +87,26 @@ for i in EPISODES:
         # Create state tensor, remember to use single precision (torch.float32)
         state_tensor = torch.tensor([state], requires_grad=False, dtype=torch.float32).to(device)
 
-        # obtain acation from actor network
-        action = DDPG.actor_network.inference(state_tensor)
+        # obtain mean and variance from actor network
+        mu, var = PPO.actor_network.inference(state_tensor)
 
-        # add noise to the action -> NUMPY ARRAY
-        action = action.cpu().detach().numpy() + ou_noise.select()
+        # obtain policy distribution
+        # FIXME: make sure mu and var have correct dim and are arrays
+        distribution = MultivariateNormal(mu, var)
+
+        # sample the distribution to get action
+        action = distribution.sample()
+
+        # get the probabilility of picking the action given state
+        action_prob = (2*np.pi*var)**(-0.5)*np.exp(-((action-mu)**2)/(2*var))
+
+        # action -> NUMPY ARRAY
+        # action = action.cpu().detach().numpy()
 
         # Get next state and reward.  The done variable
         # will be True if you reached the goal position,
         # False otherwise
-        # TODO: verify this works
+        # TODO: check action dimensions
         next_state, reward, done, _ = env.step(action[0])
 
         # Update episode reward
@@ -133,17 +116,36 @@ for i in EPISODES:
         t += 1
 
         # Update buffer
-        exp = Experience(state, action[0], reward, next_state, done)
-        buffer.append(exp)
+        buffer.states.append(state)
+        buffer.actions.append(action)
+        buffer.rewards.append(reward)
+        buffer.probs.append(action_prob)
 
         state = next_state
 
-        # ---- Actual training ----
-        # Sample batch
-        states, actions, rewards, next_states, dones = buffer.sample_batch(n=batch_size)
+        buffer_len = len(buffer.states)
 
-        # Calculate targets
-        # TODO: sort gradients
+    # ---- Actual training ----
+    for epoch in range(M):
+
+        # init target values storage
+        y = []
+
+        # compute target values
+        for memo in range(buffer_len):
+
+            # grab f last rewards
+            f = buffer_len - memo
+            temp_buffer = buffer.rewards[-f:]
+
+            discount = 0
+            for rew in temp_buffer:
+                discount += discount_factor
+
+
+
+
+        # Calculate target values
         states_tensor = torch.tensor([states], dtype=torch.float32).to(device)
 
         next_states = torch.tensor([next_states], dtype=torch.float32).to(device)
@@ -189,6 +191,10 @@ for i in EPISODES:
     # Append episode reward
     episode_reward_list.append(total_episode_reward)
     episode_number_of_steps.append(t)
+
+    # Clear buffer
+    buffer.clear_buffer()
+
     # Close environment
     env.close()
 
@@ -205,7 +211,6 @@ for i in EPISODES:
     if avg_reward > 140 and avg_reward > best_loss:
         best_loss = avg_reward
         print(best_loss)
-        best_iter = i
         torch.save(DDPG.critic_network.state_dict(), 'critic_checkpoint.pth')
         torch.save(DDPG.actor_network.state_dict(), 'actor_checkpoint.pth')
 
@@ -214,7 +219,6 @@ for i in EPISODES:
         if q == 10:
             break
 
-print("Best average reward: ", best_loss, " at iteration: ", best_iter)
 # Plot Rewards and steps
 fig, ax = plt.subplots(nrows=1, ncols=2, figsize=(16, 9))
 ax[0].plot([i for i in range(1, N_episodes + 1)], episode_reward_list, label='Episode reward')

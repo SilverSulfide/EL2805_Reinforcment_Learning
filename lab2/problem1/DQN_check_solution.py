@@ -23,7 +23,7 @@ from mpl_toolkits.mplot3d import Axes3D
 import matplotlib.pyplot as plt
 
 import utils as ut
-import DQN_agent as RandAgent
+# import DQN_agent as RandAgent
 
 
 def running_average(x, N):
@@ -68,6 +68,7 @@ I = []
 # Reward
 episode_reward_list_random_agent = []  # Used to store episodes reward (random agent)
 
+"""
 # Simulate episodes
 print('Checking solution...')
 EPISODES = trange(N_EPISODES, desc='Episode: ', leave=True)
@@ -177,6 +178,7 @@ ax.set_xlabel('y')
 ax.set_ylabel('w')
 ax.set_zlabel('max Q value')
 plt.show()
+
 # ---- Plot the best action ----
 fig = plt.figure()
 ax = fig.add_subplot(111, projection='3d')
@@ -204,4 +206,3 @@ ax.set_xlabel('y')
 ax.set_ylabel('w')
 ax.set_zlabel('Best action')
 plt.show()
-"""

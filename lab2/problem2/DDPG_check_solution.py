@@ -70,7 +70,7 @@ I = []
 episode_reward_list_random_agent = []  # Used to store episodes reward (random agent)
 
 
-"""
+
 # Simulate episodes
 print('Checking solution...')
 EPISODES = trange(N_EPISODES, desc='Episode: ', leave=True)
@@ -116,7 +116,7 @@ else:
         "confidence".format(
             CONFIDENCE_PASS))
 
-
+"""
 EPISODES = trange(N_EPISODES, desc='Episode: ', leave=True)
 for i in EPISODES:
     EPISODES.set_description("Episode {}".format(i))
@@ -148,7 +148,7 @@ plt.xlabel('Episodes')
 plt.ylabel('Reward for episode')
 plt.legend(loc="lower left")
 plt.show()
-"""
+
 
 
 # ---- Plot the max Q value ----
@@ -190,5 +190,5 @@ ax.set_ylabel('w')
 ax.set_zlabel('Q value')
 
 plt.show()
-
+"""
 
