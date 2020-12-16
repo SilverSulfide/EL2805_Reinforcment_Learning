@@ -16,8 +16,7 @@ from tqdm import trange
 import utils as ut
 
 from torch.distributions import MultivariateNormal
-
-
+from scipy.stats import multivariate_normal
 
 
 def running_average(x, N):
@@ -51,14 +50,16 @@ episode_reward_list = []  # Used to save episodes reward
 episode_number_of_steps = []
 
 # intialise NN
-# device = 'cuda:0'
-device = 'cpu'
+if torch.cuda.is_available():
+    print("Using gpu")
+    device = 'cuda:0'
+else:
+    print("I cannot afford GPU")
+    device = 'cpu'
 batch_size = 64
 PPO = ut.PPO(dim_state, device)
 
 print("NN initalised")
-
-# initalise noise adding
 
 # Training process
 EPISODES = trange(N_episodes, desc='Episode: ', leave=True)
@@ -67,7 +68,6 @@ q = 0
 
 # Initialise the buffer
 buffer = ut.Buffer()
-
 
 for i in EPISODES:
 
@@ -80,34 +80,34 @@ for i in EPISODES:
     total_episode_reward = 0.
     t = 0
 
-    temp_loss = []
+    critic_loss = []
+    actor_loss = []
 
     while not done:
-
         # Create state tensor, remember to use single precision (torch.float32)
-        state_tensor = torch.tensor([state], requires_grad=False, dtype=torch.float32).to(device)
+        state_tensor = torch.tensor([state], dtype=torch.float32).to(device)
 
         # obtain mean and variance from actor network
         mu, var = PPO.actor_network.inference(state_tensor)
 
         # obtain policy distribution
-        # FIXME: make sure mu and var have correct dim and are arrays
+        var = torch.diag_embed(var)
         distribution = MultivariateNormal(mu, var)
 
         # sample the distribution to get action
         action = distribution.sample()
 
         # get the probabilility of picking the action given state
-        action_prob = (2*np.pi*var)**(-0.5)*np.exp(-((action-mu)**2)/(2*var))
 
-        # action -> NUMPY ARRAY
-        # action = action.cpu().detach().numpy()
+        action_prob = distribution.log_prob(action)
+
+        action = action.cpu().numpy()[0]
+        action_prob = action_prob.cpu().item()
 
         # Get next state and reward.  The done variable
         # will be True if you reached the goal position,
         # False otherwise
-        # TODO: check action dimensions
-        next_state, reward, done, _ = env.step(action[0])
+        next_state, reward, done, _ = env.step(action)
 
         # Update episode reward
         total_episode_reward += reward
@@ -119,74 +119,61 @@ for i in EPISODES:
         buffer.states.append(state)
         buffer.actions.append(action)
         buffer.rewards.append(reward)
-        buffer.probs.append(action_prob)
+        buffer.prob_action.append(action_prob)
 
         state = next_state
 
         buffer_len = len(buffer.states)
 
+    # precompute y_i
+    y_i = []
+    for memo in range(buffer_len):
+
+        # grab f last rewards
+        # f = buffer_len - memo
+        # temp_buffer = buffer.rewards[-f:]
+
+        # TODO: make sure this works
+        if memo == 0:
+            target = 0
+            for n, rew in enumerate(buffer.rewards):
+                target += rew * discount_factor ** n
+            y_i.append(target)
+        else:
+            target = (y_i[-1] - buffer.rewards[memo - 1]) / discount_factor
+            y_i.append(target)
+
+    # convert lists to arrays
+    y_i = torch.tensor([y_i]).float().to(device).unsqueeze(dim=-1)
+    states = torch.tensor([buffer.states], requires_grad=True, dtype=torch.float32).to(device)
+    action_prob = torch.tensor([buffer.prob_action]).float().to(device).unsqueeze(dim=-1)
+
     # ---- Actual training ----
     for epoch in range(M):
+        # forward loop the critic
+        critic_values = PPO.critic_network.forward(states)
 
-        # init target values storage
-        y = []
+        # compute critic loss
+        loss = PPO.critic_loss(critic_values, y_i)
 
-        # compute target values
-        for memo in range(buffer_len):
+        # perfrom backward pass
+        PPO.backward_critic(loss)
 
-            # grab f last rewards
-            f = buffer_len - memo
-            temp_buffer = buffer.rewards[-f:]
+        # calculate advantage esimation
+        psi = y_i - critic_values
 
-            discount = 0
-            for rew in temp_buffer:
-                discount += discount_factor
+        psi = psi.detach()
 
+        # calculate new action prob
+        new_mu, new_var = PPO.actor_network.forward(states)
+        new_var = torch.diag_embed(new_var)
 
+        loss2 = PPO.actor_loss(new_mu, new_var, action_prob, psi)
 
+        PPO.backward_actor(loss2)
 
-        # Calculate target values
-        states_tensor = torch.tensor([states], dtype=torch.float32).to(device)
-
-        next_states = torch.tensor([next_states], dtype=torch.float32).to(device)
-
-        target_actions = DDPG.actor_target_network.inference(next_states)
-
-        targets = DDPG.critic_target_network.forward(next_states, target_actions)
-
-        targets = discount_factor * targets
-
-        reward_tensor = torch.tensor([rewards], requires_grad=False, dtype=torch.float32).transpose(0, 1).to(
-            device).unsqueeze(dim=0)
-
-        mask = torch.tensor([dones], requires_grad=False).transpose(0, 1).to(device).unsqueeze(dim=0)
-        targets = reward_tensor + targets * (mask.float() - 1).abs()
-
-        # Get rid of target gradients
-        targets = targets.detach()
-
-        # update the critic network
-        actions_tensor = torch.tensor([actions], dtype=torch.float32).to(device)
-        values = DDPG.critic_network.forward(states_tensor, actions_tensor)
-
-        loss = DDPG.critic_loss(values, targets)
-
-        DDPG.backward_critic(loss)
-
-        temp_loss.append(loss.detach().item())
-
-        # if C steps have passed
-        if t % 2 == 0:
-            # SGD for actor network
-            actor_actions = DDPG.actor_network.forward(states_tensor)
-            critic_values = DDPG.critic_network.forward(states_tensor, actor_actions)
-            loss = DDPG.actor_loss(critic_values)
-
-            DDPG.backward_actor(loss)
-
-            # soft update
-            DDPG.target_critic_network = soft_updates(DDPG.critic_network, DDPG.critic_target_network, 10 ** (-3))
-            DDPG.target_actor_network = soft_updates(DDPG.actor_network, DDPG.actor_target_network, 10 ** (-3))
+        critic_loss.append(loss.item())
+        actor_loss.append(loss2.item())
 
     # Append episode reward
     episode_reward_list.append(total_episode_reward)
@@ -203,16 +190,16 @@ for i in EPISODES:
     # of the last episode, average reward, average number of steps)
     avg_reward = running_average(episode_reward_list, n_ep_running_average)[-1]
     EPISODES.set_description(
-        "Episode {} - Reward/Steps: {:.1f}/{} - Avg. Reward/Steps: {:.1f}/{} - Mean loss: {:.1f}".format(
+        "Episode {} - Reward/Steps: {:.1f}/{} - Avg. Reward/Steps: {:.1f}/{} - Critic loss: {:.1f} - Actor loss: {:.1f}".format(
             i, total_episode_reward, t,
             avg_reward,
-            running_average(episode_number_of_steps, n_ep_running_average)[-1], np.mean(temp_loss)))
+            running_average(episode_number_of_steps, n_ep_running_average)[-1], np.mean(critic_loss),
+            np.mean(actor_loss)))
 
-    if avg_reward > 140 and avg_reward > best_loss:
+    if avg_reward > 125 and avg_reward > best_loss:
         best_loss = avg_reward
-        print(best_loss)
-        torch.save(DDPG.critic_network.state_dict(), 'critic_checkpoint.pth')
-        torch.save(DDPG.actor_network.state_dict(), 'actor_checkpoint.pth')
+        torch.save(PPO.critic_network.state_dict(), 'critic_checkpoint.pth')
+        torch.save(PPO.actor_network.state_dict(), 'actor_checkpoint.pth')
 
     if avg_reward > 140:
         q += 1

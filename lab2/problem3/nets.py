@@ -19,7 +19,7 @@ class NNCritic(nn.Module):
         # Create output layer
         self.output_layer = nn.Linear(hidden_size_2, output_size)
 
-    def forward(self, x, action):
+    def forward(self, x):
         # Compute first layer
         l1 = self.input_layer(x)
         l1 = self.layer_activation(l1)
@@ -60,7 +60,6 @@ class NNActor(nn.Module):
         l1 = self.shared_input_layer(x)
         l1 = self.layer_activation(l1)
 
-
         # ---- First head ----
         # Compute second layer
         l2 = self.hidden_layer(l1)
@@ -69,7 +68,6 @@ class NNActor(nn.Module):
         # Compute output layer
         out1 = self.output_layer(l2)
         out1 = self.mu_activation(out1)
-
 
         # ---- Second head ----
         # Compute second layer
@@ -92,7 +90,6 @@ class NNActor(nn.Module):
         l1 = self.shared_input_layer(x)
         l1 = self.layer_activation(l1)
 
-
         # ---- First head ----
         # Compute second layer
         l2 = self.hidden_layer(l1)
@@ -101,7 +98,6 @@ class NNActor(nn.Module):
         # Compute output layer
         out1 = self.output_layer(l2)
         out1 = self.mu_activation(out1)
-
 
         # ---- Second head ----
         # Compute second layer
