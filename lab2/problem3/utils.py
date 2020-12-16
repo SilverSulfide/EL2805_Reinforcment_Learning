@@ -28,19 +28,17 @@ class PPO:
 
     # FIXME: implement
     def actor_loss(self, new_mu, new_var, old_probs, psi):
-
         # FIXME: sloppy device inheritance
-        loss = torch.zeros(new_mu.shape).to(device=new_mu.device)
+        loss = torch.zeros(1).to(device=new_mu.device)
 
         for i in range(new_mu.shape[1]):
             distribution = MultivariateNormal(new_mu[:, i, :], new_var[:, i, ...])
             action = distribution.sample()
             log_prob = distribution.log_prob(action)
-            r_theta = torch.exp(log_prob - old_probs)
+            r_theta = torch.exp(log_prob - old_probs[:, i])
 
-            loss += torch.min(r_theta * psi[:, i, ...], self.epsilon_min(r_theta) * psi[:, i, ...])
-
-        return - loss.mean()
+            loss += torch.min(r_theta * psi[:, i], self.epsilon_min(r_theta) * psi[:, i])
+        return - loss / torch.tensor(new_mu.shape[1])
 
     def backward_critic(self, loss):
         # reset gradients to 0

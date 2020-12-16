@@ -146,7 +146,7 @@ for i in EPISODES:
     # convert lists to arrays
     y_i = torch.tensor([y_i]).float().to(device).unsqueeze(dim=-1)
     states = torch.tensor([buffer.states], requires_grad=True, dtype=torch.float32).to(device)
-    action_prob = torch.tensor([buffer.prob_action]).float().to(device).unsqueeze(dim=-1)
+    action_prob = torch.tensor([buffer.prob_action]).float().to(device)
 
     # ---- Actual training ----
     for epoch in range(M):
@@ -162,7 +162,7 @@ for i in EPISODES:
         # calculate advantage esimation
         psi = y_i - critic_values
 
-        psi = psi.detach()
+        psi = psi.detach().squeeze(dim=-1)
 
         # calculate new action prob
         new_mu, new_var = PPO.actor_network.forward(states)
