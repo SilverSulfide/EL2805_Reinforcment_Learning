@@ -143,26 +143,28 @@ for i in EPISODES:
 
     # convert lists to arrays
     y_i = torch.tensor([y_i]).float().to(device).unsqueeze(dim=-1)
-    states = torch.tensor([buffer.states], requires_grad=True, dtype=torch.float32).to(device)
+    states = torch.tensor([buffer.states], dtype=torch.float32).to(device)
     action_prob = torch.tensor([buffer.prob_action]).float().to(device)
+
+    # forward loop the critic
+    critic_values = PPO.critic_network.forward(states)
+
+    # calculate advantage esimation
+    psi = y_i - critic_values
+
+    psi = psi.detach().squeeze(dim=-1)
 
     # ---- Actual training ----
     for epoch in range(M):
+
         # forward loop the critic
-        critic_values = PPO.critic_network.forward(states)
+        critic_values2 = PPO.critic_network.forward(states)
 
         # compute critic loss
-        loss = PPO.critic_loss(critic_values, y_i)
+        loss = PPO.critic_loss(critic_values2, y_i)
 
         # perfrom backward pass
         PPO.backward_critic(loss)
-
-        critic_values2 = PPO.critic_network.forward(states)
-
-        # calculate advantage esimation
-        psi = y_i - critic_values2
-
-        psi = psi.detach().squeeze(dim=-1)
 
         # calculate new action prob
         new_mu, new_var = PPO.actor_network.forward(states)
