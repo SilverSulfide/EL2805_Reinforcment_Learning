@@ -98,8 +98,9 @@ for i in EPISODES:
         action = distribution.sample()
 
         # get the probabilility of picking the action given state
-
         action_prob = distribution.log_prob(action)
+
+        buffer.actions.append(action)
 
         action = action.cpu().numpy()[0]
         action_prob = action_prob.cpu().item()
@@ -117,14 +118,11 @@ for i in EPISODES:
 
         # Update buffer
         buffer.states.append(state)
-        buffer.actions.append(action)
         buffer.rewards.append(reward)
         buffer.prob_action.append(action_prob)
-
         state = next_state
 
-        buffer_len = len(buffer.states)
-
+    buffer_len = len(buffer.states)
     # precompute y_i
     y_i = []
     for memo in range(buffer_len):
@@ -159,8 +157,10 @@ for i in EPISODES:
         # perfrom backward pass
         PPO.backward_critic(loss)
 
+        critic_values2 = PPO.critic_network.forward(states)
+
         # calculate advantage esimation
-        psi = y_i - critic_values
+        psi = y_i - critic_values2
 
         psi = psi.detach().squeeze(dim=-1)
 
@@ -168,7 +168,7 @@ for i in EPISODES:
         new_mu, new_var = PPO.actor_network.forward(states)
         new_var = torch.diag_embed(new_var)
 
-        loss2 = PPO.actor_loss(new_mu, new_var, action_prob, psi)
+        loss2 = PPO.actor_loss(new_mu, new_var, action_prob, buffer.actions, psi)
 
         PPO.backward_actor(loss2)
 

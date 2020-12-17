@@ -27,14 +27,13 @@ class PPO:
         return F.mse_loss(out, target)
 
     # FIXME: implement
-    def actor_loss(self, new_mu, new_var, old_probs, psi):
+    def actor_loss(self, new_mu, new_var, old_probs, actions, psi):
         # FIXME: sloppy device inheritance
         loss = torch.zeros(1).to(device=new_mu.device)
 
         for i in range(new_mu.shape[1]):
             distribution = MultivariateNormal(new_mu[:, i, :], new_var[:, i, ...])
-            action = distribution.sample()
-            log_prob = distribution.log_prob(action)
+            log_prob = distribution.log_prob(actions[i])
             r_theta = torch.exp(log_prob - old_probs[:, i])
 
             loss += torch.min(r_theta * psi[:, i], self.epsilon_min(r_theta) * psi[:, i])
