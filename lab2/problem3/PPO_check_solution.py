@@ -48,8 +48,8 @@ env.reset()
 # Load model
 # FIXME: cpu or cuda:0
 device = 'cpu'
-checkpoint = torch.load('actor_checkpoint_big.pth', map_location=torch.device(device))
-checkpoint2 = torch.load('critic_checkpoint_big.pth', map_location=torch.device(device))
+checkpoint = torch.load('actor_checkpoint_new.pth', map_location=torch.device(device))
+checkpoint2 = torch.load('critic_checkpoint_new.pth', map_location=torch.device(device))
 
 
 
