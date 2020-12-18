@@ -48,8 +48,8 @@ env.reset()
 # Load model
 # FIXME: cpu or cuda:0
 device = 'cpu'
-checkpoint = torch.load('actor_checkpoint.pth', map_location=torch.device(device))
-checkpoint2 = torch.load('critic_checkpoint.pth', map_location=torch.device(device))
+checkpoint = torch.load('actor_checkpoint_big.pth', map_location=torch.device(device))
+checkpoint2 = torch.load('critic_checkpoint_big.pth', map_location=torch.device(device))
 
 
 
@@ -97,8 +97,12 @@ for i in EPISODES:
         distribution = MultivariateNormal(mu, var)
 
         # sample the distribution to get action
-        action = mu[0]
-        #print(action)
+        # action = mu[0]
+        # print(action)
+
+        # sample the distribution to get action
+        action = distribution.sample()[0]
+        # print(action)
 
         next_state, reward, done, _ = env.step(action.detach().numpy())
 

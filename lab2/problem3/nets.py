@@ -47,11 +47,17 @@ class NNActor(nn.Module):
         # Create input layer with ReLU activation
         self.shared_input_layer = nn.Linear(input_size, hidden_size_1)
 
-        # Create a hidden layer
-        self.hidden_layer = nn.Linear(hidden_size_1, hidden_size_2)
+        # Create a hidden layer for mu
+        self.hidden_layer_mu = nn.Linear(hidden_size_1, hidden_size_2)
 
-        # Create output layer
-        self.output_layer = nn.Linear(hidden_size_2, output_size)
+        # Create a hidden layer for var
+        self.hidden_layer_var = nn.Linear(hidden_size_1, hidden_size_2)
+
+        # Create output layer for mu
+        self.output_layer_mu = nn.Linear(hidden_size_2, output_size)
+
+        # Create output layer for mu
+        self.output_layer_var = nn.Linear(hidden_size_2, output_size)
 
     def forward(self, x):
         # Function used to compute the forward pass
@@ -62,20 +68,20 @@ class NNActor(nn.Module):
 
         # ---- First head ----
         # Compute second layer
-        l2 = self.hidden_layer(l1)
+        l2 = self.hidden_layer_mu(l1)
         l2 = self.layer_activation(l2)
 
         # Compute output layer
-        out1 = self.output_layer(l2)
+        out1 = self.output_layer_mu(l2)
         out1 = self.mu_activation(out1)
 
         # ---- Second head ----
         # Compute second layer
-        l2_2 = self.hidden_layer(l1)
+        l2_2 = self.hidden_layer_var(l1)
         l2_2 = self.layer_activation(l2_2)
 
         # Compute output layer
-        out2 = self.output_layer(l2_2)
+        out2 = self.output_layer_var(l2_2)
         out2 = self.var_activation(out2)
 
         return out1, out2
@@ -92,20 +98,20 @@ class NNActor(nn.Module):
 
         # ---- First head ----
         # Compute second layer
-        l2 = self.hidden_layer(l1)
+        l2 = self.hidden_layer_mu(l1)
         l2 = self.layer_activation(l2)
 
         # Compute output layer
-        out1 = self.output_layer(l2)
+        out1 = self.output_layer_mu(l2)
         out1 = self.mu_activation(out1)
 
         # ---- Second head ----
         # Compute second layer
-        l2_2 = self.hidden_layer(l1)
+        l2_2 = self.hidden_layer_var(l1)
         l2_2 = self.layer_activation(l2_2)
 
         # Compute output layer
-        out2 = self.output_layer(l2_2)
+        out2 = self.output_layer_var(l2_2)
         out2 = self.var_activation(out2)
 
         return out1, out2
