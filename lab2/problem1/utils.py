@@ -1,5 +1,5 @@
 import numpy as np
-from collections import deque, namedtuple
+from collections import deque
 import torch
 import torch.nn as nn
 import torch.optim as optim
@@ -49,6 +49,7 @@ def net_builder(input_size, output_size, hidden_size, device):
 
 
 class DQN:
+    """ Performs forward and backward passes for (target) network"""
     def __init__(self, net_builder, input_size, output_size, hidden_size, device):
         self.network = net_builder(input_size, output_size, hidden_size, device)
         self.target_network = net_builder(input_size, output_size, hidden_size, device)
@@ -74,7 +75,6 @@ class DQN:
         return F.mse_loss(out, target)
 
     def backward(self, loss):
-
         # reset gradients to 0
         self.optimizer.zero_grad()
 
@@ -87,10 +87,8 @@ class DQN:
         # Perform backward pass (backpropagation)
         self.optimizer.step()
 
-
     @torch.no_grad()
     def forward_target(self, x):
-        # Function used to compute the forward pass
 
         # Compute first layer
         l1 = self.target_network.input_layer(x)
@@ -105,6 +103,7 @@ class DQN:
         return out
 
     def copy(self):
+        """ Copies network parameters to target network"""
         for param_q, param_k in zip(self.network.parameters(), self.target_network.parameters()):
             param_k.data.copy_(param_q.detach().data)  # initialize the evaluation net
             param_k.requires_grad = False  # do not update by gradient for evaluation net

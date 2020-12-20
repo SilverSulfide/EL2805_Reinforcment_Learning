@@ -25,7 +25,7 @@ def running_average(x, N):
     return y
 
 
-def train():
+def train_DQN(device):
     # Import and initialize the discrete Lunar Lander Environment
     env = gym.make('LunarLander-v2')
     env.seed(0)
@@ -54,7 +54,6 @@ def train():
                             ['state', 'action', 'reward', 'next_state', 'done'])
 
     # intialise NN
-    device = 'cuda:0'
     batch_size = 64
     hidden_dimension = 64
     DQN = ut.DQN(ut.net_builder, dim_state, n_actions, hidden_dimension, device)
