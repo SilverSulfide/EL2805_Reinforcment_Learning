@@ -37,10 +37,10 @@ env.reset()
 env.seed(400)
 
 # Parameters
-N_episodes = 1600  # Number of episodes to run for training
+N_episodes = 2000  # Number of episodes to run for training
 discount_factor = 0.99  # Value of gamma
 epsilon = 0.2
-M = 10
+M = 7
 n_ep_running_average = 50  # Running average of 50 episodes
 m = len(env.action_space.high)  # dimensionality of the action
 dim_state = len(env.observation_space.high)
@@ -56,7 +56,7 @@ if torch.cuda.is_available():
 else:
     print("I cannot afford GPU")
     device = 'cpu'
-batch_size = 64
+
 PPO = ut.PPO(dim_state, device)
 
 print("NN initalised")
@@ -125,6 +125,7 @@ for i in EPISODES:
     buffer_len = len(buffer.states)
     # precompute y_i
     y_i = []
+
     for memo in range(buffer_len):
 
         # grab f last rewards
@@ -140,6 +141,16 @@ for i in EPISODES:
         else:
             target = (y_i[-1] - buffer.rewards[memo - 1]) / discount_factor
             y_i.append(target)
+
+
+
+    # y_2 = []
+    # discounted_reward = 0
+    # for rew in reversed(buffer.rewards):
+    #     discounted_reward = rew + discounted_reward * 0.99
+    #     y_2.insert(0, discounted_reward)
+    #
+    # print(y_i[13], y_2[13])
 
     # convert lists to arrays
     y_i = torch.tensor([y_i]).float().to(device).unsqueeze(dim=-1)
@@ -157,14 +168,14 @@ for i in EPISODES:
     # ---- Actual training ----
     for epoch in range(M):
 
-        # forward loop the critic
-        critic_values2 = PPO.critic_network.forward(states)
-
         # compute critic loss
-        loss = PPO.critic_loss(critic_values2, y_i)
+        loss = PPO.critic_loss(critic_values, y_i)
 
         # perfrom backward pass
         PPO.backward_critic(loss)
+
+        # forward loop the critic
+        critic_values = PPO.critic_network.forward(states)
 
         # calculate new action prob
         new_mu, new_var = PPO.actor_network.forward(states)
@@ -198,15 +209,21 @@ for i in EPISODES:
             running_average(episode_number_of_steps, n_ep_running_average)[-1], np.mean(critic_loss),
             np.mean(actor_loss)))
 
-    if avg_reward > 125 and avg_reward > best_loss:
+    if avg_reward > 200 and avg_reward > best_loss:
         best_loss = avg_reward
-        torch.save(PPO.critic_network.state_dict(), 'critic_checkpoint.pth')
-        torch.save(PPO.actor_network.state_dict(), 'actor_checkpoint.pth')
+        torch.save(PPO.critic_network.state_dict(), 'critic_checkpoint_7_epo.pth')
+        torch.save(PPO.actor_network.state_dict(), 'actor_checkpoint_7_epo.pth')
 
-    if avg_reward > 140:
+        torch.save(PPO.critic_network, "crit_network_7_e.pth")
+        torch.save(PPO.actor_network, "actor_network_7_e.pth")
+
+    if avg_reward > 230:
         q += 1
         if q == 10:
             break
+
+
+N_episodes = len(episode_reward_list)
 
 # Plot Rewards and steps
 fig, ax = plt.subplots(nrows=1, ncols=2, figsize=(16, 9))
